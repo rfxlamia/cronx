@@ -34,3 +34,7 @@ Thumbs.db
 # Test coverage
 coverage/
 .nyc_output/
+
+# plan
+docs/
+.claude/

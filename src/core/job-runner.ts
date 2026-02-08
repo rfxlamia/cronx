@@ -81,7 +81,6 @@ export class JobRunner {
    */
   async run(job: Job): Promise<RunResult> {
     const startTime = Date.now();
-    const scheduledAt = Date.now();
     const retryConfig = job.retry ?? DEFAULT_RETRY;
 
     let attempts = 0;
@@ -123,7 +122,7 @@ export class JobRunner {
     // Record run
     const runRecord: RunRecord = {
       jobName: job.name,
-      scheduledAt,
+      scheduledAt: startTime,
       triggeredAt: startTime,
       completedAt: Date.now(),
       durationMs,
@@ -208,19 +207,8 @@ export class JobRunner {
    */
   private async handleFailure(job: Job, error: Error | null): Promise<void> {
     const errorMsg = error?.message || 'Unknown error';
-
-    if (job.onFailure === 'escalate') {
-      await this.gateway.notify(
-        `[ESCALATE] Job '${job.name}' failed: ${errorMsg}`,
-        'high'
-      );
-    } else {
-      // Default: notify
-      await this.gateway.notify(
-        `Job '${job.name}' failed: ${errorMsg}`,
-        'high'
-      );
-    }
+    const prefix = job.onFailure === 'escalate' ? '[ESCALATE] ' : '';
+    await this.gateway.notify(`${prefix}Job '${job.name}' failed: ${errorMsg}`, 'high');
   }
 
   /**

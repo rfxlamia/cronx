@@ -118,6 +118,27 @@ export interface ConfigToJobsOptions {
 }
 
 /**
+ * Extract strategy-specific config from job config.
+ * @throws ConfigError if strategy config is missing
+ */
+function extractStrategyConfig(
+  name: string,
+  jobConfig: { strategy: string; window?: WindowConfig; interval?: IntervalConfig; probabilistic?: ProbabilisticConfig }
+): WindowConfig | IntervalConfig | ProbabilisticConfig {
+  const strategyConfigMap = {
+    window: jobConfig.window,
+    interval: jobConfig.interval,
+    probabilistic: jobConfig.probabilistic,
+  } as const
+
+  const strategyConfig = strategyConfigMap[jobConfig.strategy as keyof typeof strategyConfigMap]
+  if (!strategyConfig) {
+    throw new ConfigError(`Job '${name}' has strategy '${jobConfig.strategy}' but no ${jobConfig.strategy} config`)
+  }
+  return strategyConfig
+}
+
+/**
  * Convert a CRONX configuration to an array of Job objects.
  *
  * @param config - Validated CRONX configuration
@@ -126,72 +147,22 @@ export interface ConfigToJobsOptions {
  */
 export function configToJobs(config: CronxConfigOutput, options: ConfigToJobsOptions = {}): Job[] {
   const { enabledOnly = false } = options
-  const jobs: Job[] = []
 
-  for (const [name, jobConfig] of Object.entries(config.jobs)) {
-    // Skip disabled jobs if enabledOnly is true
-    if (enabledOnly && !jobConfig.enabled) {
-      continue
-    }
-
-    // Get strategy-specific config
-    let strategyConfig: WindowConfig | IntervalConfig | ProbabilisticConfig
-
-    switch (jobConfig.strategy) {
-      case 'window':
-        if (!jobConfig.window) {
-          throw new ConfigError(`Job '${name}' has strategy 'window' but no window config`)
-        }
-        strategyConfig = {
-          start: jobConfig.window.start,
-          end: jobConfig.window.end,
-          timezone: jobConfig.window.timezone,
-          distribution: jobConfig.window.distribution,
-        }
-        break
-
-      case 'interval':
-        if (!jobConfig.interval) {
-          throw new ConfigError(`Job '${name}' has strategy 'interval' but no interval config`)
-        }
-        strategyConfig = {
-          min: jobConfig.interval.min,
-          max: jobConfig.interval.max,
-          jitter: jobConfig.interval.jitter,
-        }
-        break
-
-      case 'probabilistic':
-        if (!jobConfig.probabilistic) {
-          throw new ConfigError(`Job '${name}' has strategy 'probabilistic' but no probabilistic config`)
-        }
-        strategyConfig = {
-          checkInterval: jobConfig.probabilistic.checkInterval,
-          probability: jobConfig.probabilistic.probability,
-        }
-        break
-    }
-
-    // Build the Job object
-    const job: Job = {
+  return Object.entries(config.jobs)
+    .filter(([, jobConfig]) => !enabledOnly || jobConfig.enabled)
+    .map(([name, jobConfig]) => ({
       name,
       description: jobConfig.description,
       tags: jobConfig.tags,
       strategy: jobConfig.strategy,
-      config: strategyConfig,
+      config: extractStrategyConfig(name, jobConfig),
       enabled: jobConfig.enabled,
       action: {
         message: jobConfig.action.message,
         priority: jobConfig.action.priority,
       },
-      // Use job-specific config or fall back to defaults
       retry: jobConfig.retry ?? config.cronx.defaults.retry,
       circuitBreaker: jobConfig.circuitBreaker ?? config.cronx.defaults.circuitBreaker,
       onFailure: jobConfig.onFailure ?? config.cronx.defaults.onFailure,
-    }
-
-    jobs.push(job)
-  }
-
-  return jobs
+    }))
 }

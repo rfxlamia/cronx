@@ -5,17 +5,12 @@
  * based on configured probability.
  */
 import type { ProbabilisticConfig } from '../types.js';
-import { createRng } from '../utils/random.js';
+import { parseStrategyOptions, type StrategyOptions } from '../utils/random.js';
 
 /**
  * Options for ProbabilisticStrategy
  */
-export interface ProbabilisticStrategyOptions {
-  /** Optional seed for reproducible randomness */
-  seed?: string;
-  /** Custom function to get current time (for testing) */
-  getNow?: () => number;
-}
+export type ProbabilisticStrategyOptions = StrategyOptions;
 
 /**
  * Strategy for probabilistic job execution
@@ -32,18 +27,9 @@ export class ProbabilisticStrategy {
    */
   constructor(config: ProbabilisticConfig, seedOrOptions?: string | ProbabilisticStrategyOptions) {
     this.config = config;
-
-    // Handle both old API (seed string) and new API (options object)
-    if (typeof seedOrOptions === 'string') {
-      this.rng = createRng(seedOrOptions);
-      this.getNow = () => Date.now();
-    } else if (seedOrOptions) {
-      this.rng = createRng(seedOrOptions.seed);
-      this.getNow = seedOrOptions.getNow ?? (() => Date.now());
-    } else {
-      this.rng = createRng();
-      this.getNow = () => Date.now();
-    }
+    const { rng, getNow } = parseStrategyOptions(seedOrOptions);
+    this.rng = rng;
+    this.getNow = getNow;
   }
 
   /**

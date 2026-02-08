@@ -126,46 +126,24 @@ export class GatewayClient {
       ...(context && { context }),
     })
 
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout * 1000)
+    const response = await this.fetchWithTimeout(this.url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.sessionKey}`,
+      },
+      body,
+    })
 
-    try {
-      const response = await fetch(this.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.sessionKey}`,
-        },
-        body,
-        signal: controller.signal,
-      })
-
-      clearTimeout(timeoutId)
-
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({})) as { error?: string }
-        throw new GatewayError(
-          errorBody.error || `Gateway request failed: ${response.statusText}`,
-          response.status
-        )
-      }
-
-      return (await response.json()) as GatewayResponse
-    } catch (error) {
-      clearTimeout(timeoutId)
-
-      if (error instanceof GatewayError) {
-        throw error
-      }
-
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        throw new GatewayTimeoutError(this.timeout)
-      }
-
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({})) as { error?: string }
       throw new GatewayError(
-        error instanceof Error ? error.message : 'Unknown gateway error'
+        errorBody.error || `Gateway request failed: ${response.statusText}`,
+        response.status
       )
     }
+
+    return (await response.json()) as GatewayResponse
   }
 
   /**
@@ -190,23 +168,44 @@ export class GatewayClient {
    * @returns true if gateway is healthy, false otherwise
    */
   async healthCheck(): Promise<boolean> {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout * 1000)
-
     try {
-      const response = await fetch(`${this.url}/health`, {
+      const response = await this.fetchWithTimeout(`${this.url}/health`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${this.sessionKey}`,
         },
-        signal: controller.signal,
       })
-
-      clearTimeout(timeoutId)
       return response.ok
     } catch {
-      clearTimeout(timeoutId)
       return false
+    }
+  }
+
+  /**
+   * Fetch with timeout handling.
+   */
+  private async fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout * 1000)
+
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal })
+      clearTimeout(timeoutId)
+      return response
+    } catch (error) {
+      clearTimeout(timeoutId)
+
+      if (error instanceof GatewayError) {
+        throw error
+      }
+
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new GatewayTimeoutError(this.timeout)
+      }
+
+      throw new GatewayError(
+        error instanceof Error ? error.message : 'Unknown gateway error'
+      )
     }
   }
 }

@@ -5,17 +5,12 @@
  * with optional jitter for additional randomness.
  */
 import type { IntervalConfig } from '../types.js';
-import { createRng, uniformRandom, jitteredValue } from '../utils/random.js';
+import { uniformRandom, jitteredValue, parseStrategyOptions, type StrategyOptions } from '../utils/random.js';
 
 /**
  * Options for IntervalStrategy
  */
-export interface IntervalStrategyOptions {
-  /** Optional seed for reproducible randomness */
-  seed?: string;
-  /** Custom function to get current time (for testing) */
-  getNow?: () => number;
-}
+export type IntervalStrategyOptions = StrategyOptions;
 
 /**
  * Strategy for scheduling jobs at random intervals
@@ -32,18 +27,9 @@ export class IntervalStrategy {
    */
   constructor(config: IntervalConfig, seedOrOptions?: string | IntervalStrategyOptions) {
     this.config = config;
-
-    // Handle both old API (seed string) and new API (options object)
-    if (typeof seedOrOptions === 'string') {
-      this.rng = createRng(seedOrOptions);
-      this.getNow = () => Date.now();
-    } else if (seedOrOptions) {
-      this.rng = createRng(seedOrOptions.seed);
-      this.getNow = seedOrOptions.getNow ?? (() => Date.now());
-    } else {
-      this.rng = createRng();
-      this.getNow = () => Date.now();
-    }
+    const { rng, getNow } = parseStrategyOptions(seedOrOptions);
+    this.rng = rng;
+    this.getNow = getNow;
   }
 
   /**

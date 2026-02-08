@@ -4,6 +4,35 @@
  */
 
 /**
+ * Common options for strategy classes
+ */
+export interface StrategyOptions {
+  /** Optional seed for reproducible randomness */
+  seed?: string
+  /** Custom function to get current time (for testing) */
+  getNow?: () => number
+}
+
+/**
+ * Parse strategy constructor options (handles both string seed and options object)
+ */
+export function parseStrategyOptions(seedOrOptions?: string | StrategyOptions): {
+  rng: () => number
+  getNow: () => number
+} {
+  if (typeof seedOrOptions === 'string') {
+    return { rng: createRng(seedOrOptions), getNow: () => Date.now() }
+  }
+  if (seedOrOptions) {
+    return {
+      rng: createRng(seedOrOptions.seed),
+      getNow: seedOrOptions.getNow ?? (() => Date.now()),
+    }
+  }
+  return { rng: createRng(), getNow: () => Date.now() }
+}
+
+/**
  * Simple hash function to convert string seed to number
  */
 function hashString(str: string): number {

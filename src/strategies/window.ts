@@ -3,9 +3,9 @@
  *
  * Supports uniform, gaussian, and weighted distributions
  */
-import type { WindowConfig, Distribution } from '../types.js';
+import type { WindowConfig } from '../types.js';
 import { parseTime } from '../utils/time.js';
-import { createRng, gaussianRandom, weightedRandom, uniformRandom } from '../utils/random.js';
+import { gaussianRandom, weightedRandom, uniformRandom, parseStrategyOptions, type StrategyOptions } from '../utils/random.js';
 
 /** One day in milliseconds */
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -16,12 +16,7 @@ const DEFAULT_WEIGHTS = [0.05, 0.10, 0.20, 0.30, 0.20, 0.10, 0.05];
 /**
  * Options for WindowStrategy
  */
-export interface WindowStrategyOptions {
-  /** Optional seed for reproducible randomness */
-  seed?: string;
-  /** Custom function to get current time (for testing) */
-  getNow?: () => number;
-}
+export type WindowStrategyOptions = StrategyOptions;
 
 /**
  * Strategy for scheduling jobs within a time window
@@ -38,18 +33,9 @@ export class WindowStrategy {
    */
   constructor(config: WindowConfig, seedOrOptions?: string | WindowStrategyOptions) {
     this.config = config;
-
-    // Handle both old API (seed string) and new API (options object)
-    if (typeof seedOrOptions === 'string') {
-      this.rng = createRng(seedOrOptions);
-      this.getNow = () => Date.now();
-    } else if (seedOrOptions) {
-      this.rng = createRng(seedOrOptions.seed);
-      this.getNow = seedOrOptions.getNow ?? (() => Date.now());
-    } else {
-      this.rng = createRng();
-      this.getNow = () => Date.now();
-    }
+    const { rng, getNow } = parseStrategyOptions(seedOrOptions);
+    this.rng = rng;
+    this.getNow = getNow;
   }
 
   /**

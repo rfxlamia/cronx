@@ -9,6 +9,68 @@
 import Database from 'better-sqlite3';
 import type { JobState, RunRecord } from '../types.js';
 
+// =============================================================================
+// Row Types and Mappers
+// =============================================================================
+
+interface JobRow {
+  name: string;
+  next_run: number | null;
+  last_run: number | null;
+  enabled: number;
+  fail_count: number;
+}
+
+interface RunRow {
+  id: number;
+  job_name: string;
+  scheduled_at: number;
+  triggered_at: number;
+  completed_at: number | null;
+  duration_ms: number | null;
+  status: string;
+  response: string | null;
+  error: string | null;
+  attempts: number;
+}
+
+function mapJobRow(row: JobRow): JobState {
+  return {
+    name: row.name,
+    nextRun: row.next_run,
+    lastRun: row.last_run,
+    enabled: row.enabled === 1,
+    failCount: row.fail_count,
+  };
+}
+
+function mapRunRow(row: RunRow): RunRecord {
+  return {
+    id: row.id,
+    jobName: row.job_name,
+    scheduledAt: row.scheduled_at,
+    triggeredAt: row.triggered_at,
+    status: row.status as RunRecord['status'],
+    attempts: row.attempts,
+    ...(row.completed_at !== null && { completedAt: row.completed_at }),
+    ...(row.duration_ms !== null && { durationMs: row.duration_ms }),
+    ...(row.response !== null && { response: parseJsonSafe(row.response) }),
+    ...(row.error !== null && { error: row.error }),
+  };
+}
+
+function parseJsonSafe(str: string): unknown {
+  try {
+    return JSON.parse(str);
+  } catch {
+    return str;
+  }
+}
+
+// =============================================================================
+// SQLiteStore
+// =============================================================================
+
 /**
  * SQLite-based storage for CRONX scheduler
  *
@@ -115,25 +177,8 @@ export class SQLiteStore {
       WHERE name = ?
     `);
 
-    const row = stmt.get(name) as {
-      name: string;
-      next_run: number | null;
-      last_run: number | null;
-      enabled: number;
-      fail_count: number;
-    } | undefined;
-
-    if (!row) {
-      return null;
-    }
-
-    return {
-      name: row.name,
-      nextRun: row.next_run,
-      lastRun: row.last_run,
-      enabled: row.enabled === 1,
-      failCount: row.fail_count,
-    };
+    const row = stmt.get(name) as JobRow | undefined;
+    return row ? mapJobRow(row) : null;
   }
 
   /**
@@ -148,21 +193,7 @@ export class SQLiteStore {
       ORDER BY name
     `);
 
-    const rows = stmt.all() as Array<{
-      name: string;
-      next_run: number | null;
-      last_run: number | null;
-      enabled: number;
-      fail_count: number;
-    }>;
-
-    return rows.map(row => ({
-      name: row.name,
-      nextRun: row.next_run,
-      lastRun: row.last_run,
-      enabled: row.enabled === 1,
-      failCount: row.fail_count,
-    }));
+    return (stmt.all() as JobRow[]).map(mapJobRow);
   }
 
   /**
@@ -208,51 +239,7 @@ export class SQLiteStore {
       LIMIT ?
     `);
 
-    const rows = stmt.all(jobName, limit) as Array<{
-      id: number;
-      job_name: string;
-      scheduled_at: number;
-      triggered_at: number;
-      completed_at: number | null;
-      duration_ms: number | null;
-      status: string;
-      response: string | null;
-      error: string | null;
-      attempts: number;
-    }>;
-
-    return rows.map(row => {
-      const record: RunRecord = {
-        id: row.id,
-        jobName: row.job_name,
-        scheduledAt: row.scheduled_at,
-        triggeredAt: row.triggered_at,
-        status: row.status as RunRecord['status'],
-        attempts: row.attempts,
-      };
-
-      if (row.completed_at !== null) {
-        record.completedAt = row.completed_at;
-      }
-
-      if (row.duration_ms !== null) {
-        record.durationMs = row.duration_ms;
-      }
-
-      if (row.response !== null) {
-        try {
-          record.response = JSON.parse(row.response);
-        } catch {
-          record.response = row.response;
-        }
-      }
-
-      if (row.error !== null) {
-        record.error = row.error;
-      }
-
-      return record;
-    });
+    return (stmt.all(jobName, limit) as RunRow[]).map(mapRunRow);
   }
 
   /**
