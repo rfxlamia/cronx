@@ -1,0 +1,47 @@
+{
+  "name": "cronx",
+  "version": "0.1.0",
+  "description": "Random job scheduler for AI agents - making autonomous agents feel natural, not robotic",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "cronx": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/daemon.ts",
+    "start": "node dist/daemon.js",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "cron",
+    "scheduler",
+    "ai-agent",
+    "openclaw",
+    "random",
+    "autonomous"
+  ],
+  "author": "V",
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "chokidar": "^3.6.0",
+    "commander": "^12.0.0",
+    "pino": "^8.19.0",
+    "yaml": "^2.4.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.9",
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
