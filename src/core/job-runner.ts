@@ -136,7 +136,12 @@ export class JobRunner {
 
     // Handle failure notification
     if (status !== 'success' && job.onFailure !== 'silent') {
-      await this.handleFailure(job, lastError);
+      try {
+        await this.handleFailure(job, lastError);
+      } catch (err) {
+        // Log but don't throw - don't let notification failure mask job failure
+        console.error('Failed to send failure notification:', err);
+      }
     }
 
     return {

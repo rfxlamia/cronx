@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * CRONX CLI
  *
@@ -10,12 +9,20 @@
 import { Command } from 'commander';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { loadConfigFromFile, configToJobs } from './config/index.js';
 import { SQLiteStore } from './storage/sqlite.js';
 import { GatewayClient } from './gateway/client.js';
 import { Scheduler } from './core/scheduler.js';
 import { createStrategy } from './strategies/index.js';
+
+// =============================================================================
+// ESM Compatibility
+// =============================================================================
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // =============================================================================
 // Constants

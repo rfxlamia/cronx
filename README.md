@@ -424,3 +424,25 @@ MIT
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+---
+
+## Roadmap
+
+The following features are planned for future releases:
+
+### v0.2
+- **Circuit Breaker Logic**: Database table exists, implementation coming soon
+- **Dead Letter Queue**: Store failed jobs for manual review/retry
+- **HEARTBEAT.md Parser**: Parse and execute tasks from HEARTBEAT.md files
+- **Additional CLI Commands**:
+  - `cronx trigger <job>` - Manually trigger a job
+  - `cronx disable <job>` - Disable a job
+  - `cronx enable <job>` - Enable a job
+  - `cronx logs [job]` - View execution logs
+
+### Future
+- Web dashboard for monitoring
+- Distributed scheduling (multi-node)
+- Webhook triggers
+- Job dependencies and DAG support

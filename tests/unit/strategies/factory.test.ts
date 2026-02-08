@@ -3,7 +3,7 @@
  *
  * Tests for unified strategy creation from job definitions
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createStrategy, type StrategyWrapper } from '../../../src/strategies/index.js';
 import type { Job, WindowConfig, IntervalConfig, ProbabilisticConfig } from '../../../src/types.js';
 
@@ -175,6 +175,16 @@ describe('createStrategy', () => {
   });
 
   describe('reproducibility', () => {
+    beforeEach(() => {
+      // Fix time to ensure reproducible tests
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-01-15T10:00:00Z'));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it('should produce same results with same seed for window', () => {
       const job: Job = {
         name: 'test-job',
