@@ -1,0 +1,65 @@
+# cronx.config.example.yaml
+# Copy this to ~/.cronx/cronx.config.yaml
+
+cronx:
+  version: 1
+  timezone: "Asia/Jakarta"
+
+  gateway:
+    url: "${CRONX_GATEWAY_URL:-http://127.0.0.1:18789/api/v1/sessions/send}"
+    sessionKey: "agent:main:main"
+    timeout: 30s
+
+  defaults:
+    retry:
+      maxAttempts: 3
+      backoff: exponential
+      timeout: 30
+    circuitBreaker:
+      threshold: 5
+      window: 3600
+      recoveryTime: 600
+    onFailure: notify
+
+jobs:
+  # Window strategy: Run once within a time window
+  research:
+    description: "Daily AI research and learning"
+    tags: [learning, morning]
+    strategy: window
+    window:
+      start: "09:00"
+      end: "11:00"
+      distribution: weighted
+    action:
+      message: "Run skill: phd-research --topic 'trending AI'"
+    enabled: true
+
+  # Interval strategy: Run every N hours with jitter
+  check_email:
+    description: "Periodic email monitoring"
+    tags: [communication]
+    strategy: interval
+    interval:
+      min: 7200
+      max: 14400
+      jitter: 0.2
+    action:
+      message: "Check gmail for important messages"
+    enabled: true
+
+  # Probabilistic strategy: Random chance each interval
+  social_pulse:
+    description: "Random social media check"
+    tags: [social, optional]
+    strategy: probabilistic
+    probabilistic:
+      checkInterval: 3600
+      probability: 0.3
+    action:
+      message: "Quick scan Twitter/X for AI news"
+      priority: low
+    retry:
+      maxAttempts: 1
+    onFailure: silent
+    enabled: true
