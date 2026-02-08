@@ -12,68 +12,84 @@
 
 // Scheduler
 export { Scheduler } from './core/scheduler.js'
-export type { SchedulerOptions, SchedulerState } from './core/scheduler.js'
+export type { SchedulerConfig, JobStatus } from './core/scheduler.js'
 
-// Job
-export { Job } from './core/job.js'
-export type { JobConfig, JobState, JobResult } from './core/job.js'
-
-// Window
-export { TimeWindow } from './core/window.js'
-export type { TimeWindowConfig, WindowBoundary } from './core/window.js'
+// Job Runner
+export { JobRunner } from './core/job-runner.js'
+export type { RunResult } from './core/job-runner.js'
 
 // =============================================================================
 // Strategy Exports
 // =============================================================================
 
 export {
-  UniformRandomStrategy,
-  GaussianRandomStrategy,
-  PoissonRandomStrategy,
-  WeightedRandomStrategy,
-  type RandomStrategy,
-  type StrategyConfig,
+  WindowStrategy,
+  IntervalStrategy,
+  ProbabilisticStrategy,
+  createStrategy,
+  type StrategyWrapper,
 } from './strategies/index.js'
 
 // =============================================================================
 // Gateway Exports
 // =============================================================================
 
-export { Gateway } from './gateway/gateway.js'
-export type { GatewayConfig, GatewayHandler } from './gateway/gateway.js'
+export { GatewayClient, GatewayError, GatewayTimeoutError } from './gateway/client.js'
+export type { GatewayClientConfig, TriggerRequest } from './gateway/client.js'
 
 // =============================================================================
 // Storage Exports
 // =============================================================================
 
-export { Storage } from './storage/storage.js'
-export type { StorageAdapter, StorageOptions } from './storage/storage.js'
+export { SQLiteStore } from './storage/sqlite.js'
 
 // =============================================================================
 // Config Exports
 // =============================================================================
 
-export { loadConfig, parseConfig, validateConfig } from './config/loader.js'
-export type { CronxConfig, JobDefinition } from './config/schema.js'
-
-// =============================================================================
-// Utility Exports
-// =============================================================================
-
-export { createLogger } from './utils/logger.js'
-export type { Logger, LogLevel } from './utils/logger.js'
+export { loadConfigFromFile, loadConfigFromString, configToJobs, ConfigError, EnvVarError } from './config/loader.js'
+export { CronxConfigSchema } from './config/schema.js'
+export type { CronxConfigOutput, CronxConfigInput } from './config/schema.js'
 
 // =============================================================================
 // Type-only Exports
 // =============================================================================
 
 export type {
+  // Core types
+  Job,
+  JobState,
+  RunRecord,
+  RunStatus,
+  Strategy,
+  Distribution,
+  FailureAction,
+
+  // Strategy configs
+  WindowConfig,
+  IntervalConfig,
+  ProbabilisticConfig,
+  StrategyConfig,
+
+  // Retry & Circuit Breaker
+  RetryConfig,
+  CircuitBreakerConfig,
+  CircuitState,
+
+  // Gateway types
+  GatewayRequest,
+  GatewayResponse,
+
+  // Config types
+  CronxConfig,
+
   // Events
   JobEvent,
   SchedulerEvent,
 
   // Callbacks
   JobHandler,
+  JobContext,
   ErrorHandler,
 
   // Common types

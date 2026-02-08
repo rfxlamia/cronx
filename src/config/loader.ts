@@ -8,8 +8,8 @@
 
 import * as fs from 'node:fs'
 import * as yaml from 'yaml'
-import { CronxConfigSchema, type CronxConfigOutput } from './schema'
-import type { Job, WindowConfig, IntervalConfig, ProbabilisticConfig } from '../types'
+import { CronxConfigSchema, type CronxConfigOutput } from './schema.js'
+import type { Job, WindowConfig, IntervalConfig, ProbabilisticConfig } from '../types.js'
 
 // =============================================================================
 // Error Classes

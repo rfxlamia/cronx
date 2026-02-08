@@ -6,7 +6,7 @@
  * @packageDocumentation
  */
 
-import type { GatewayResponse } from '../types'
+import type { GatewayResponse } from '../types.js'
 
 // =============================================================================
 // Error Classes
@@ -143,7 +143,7 @@ export class GatewayClient {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}))
+        const errorBody = await response.json().catch(() => ({})) as { error?: string }
         throw new GatewayError(
           errorBody.error || `Gateway request failed: ${response.statusText}`,
           response.status
