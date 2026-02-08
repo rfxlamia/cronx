@@ -39,7 +39,10 @@ export const IntervalConfigSchema = z.object({
   min: z.number().min(1),
   max: z.number().min(1),
   jitter: z.number().min(0).max(1).default(0.2),
-})
+}).refine(
+  (data) => data.max >= data.min,
+  { message: 'Interval max must be greater than or equal to min' }
+)
 
 export const ProbabilisticConfigSchema = z.object({
   checkInterval: z.number().min(1),
@@ -82,8 +85,13 @@ export const CronxConfigSchema = z.object({
     version: z.number().default(1),
     timezone: z.string().default('UTC'),
     gateway: z.object({
-      url: z.string().url(),
-      sessionKey: z.string(),
+      url: z.string().url().refine(
+        (url) => url.startsWith('https://') ||
+                 url.startsWith('http://127.0.0.1') ||
+                 url.startsWith('http://localhost'),
+        { message: 'Gateway URL must use HTTPS (HTTP allowed only for localhost)' }
+      ),
+      sessionKey: z.string().min(8, 'Session key must be at least 8 characters'),
       timeout: z
         .string()
         .or(z.number())
