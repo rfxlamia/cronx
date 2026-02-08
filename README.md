@@ -3,6 +3,8 @@
 **Random Job Scheduler for AI Agents**
 
 Makes autonomous agents feel natural, not robotic.
+for Blu 💙,  
+so that he can feel a little of the "imperfection" of human time
 
 ---
 
