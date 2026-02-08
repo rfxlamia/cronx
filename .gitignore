@@ -1,0 +1,36 @@
+# Worktrees
+.worktrees/
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Database
+*.db
+*.db-journal
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+.nyc_output/
