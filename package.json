@@ -2,19 +2,52 @@
   "name": "cronx",
   "version": "0.1.0",
   "description": "Random job scheduler for AI agents - making autonomous agents feel natural, not robotic",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./strategies": {
+      "import": {
+        "types": "./dist/strategies/index.d.ts",
+        "default": "./dist/strategies/index.js"
+      },
+      "require": {
+        "types": "./dist/strategies/index.d.cts",
+        "default": "./dist/strategies/index.cjs"
+      }
+    }
+  },
   "bin": {
     "cronx": "./dist/cli.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
+    "build:tsc": "tsc",
     "dev": "tsx watch src/daemon.ts",
     "start": "node dist/daemon.js",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint src/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm run typecheck"
   },
   "keywords": [
     "cron",
@@ -22,10 +55,20 @@
     "ai-agent",
     "openclaw",
     "random",
-    "autonomous"
+    "autonomous",
+    "job-scheduler",
+    "task-scheduler"
   ],
   "author": "V",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/user/cronx.git"
+  },
+  "bugs": {
+    "url": "https://github.com/user/cronx/issues"
+  },
+  "homepage": "https://github.com/user/cronx#readme",
   "dependencies": {
     "better-sqlite3": "^11.0.0",
     "chokidar": "^3.6.0",
@@ -37,6 +80,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.9",
     "@types/node": "^20.11.0",
+    "tsup": "^8.0.0",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
     "vitest": "^1.2.0"
