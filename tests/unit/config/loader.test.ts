@@ -135,7 +135,7 @@ jobs:
 cronx:
   gateway:
     url: https://example.com
-    sessionKey: key
+    sessionKey: test-key-12345
 
 jobs:
   bad-job:
@@ -152,7 +152,7 @@ jobs:
 cronx:
   gateway:
     url: https://example.com
-    sessionKey: key
+    sessionKey: test-key-12345
 
 jobs:
   window-job:
@@ -172,7 +172,7 @@ jobs:
 cronx:
   gateway:
     url: https://example.com
-    sessionKey: key
+    sessionKey: test-key-12345
 
 jobs:
   prob-job:
@@ -192,7 +192,7 @@ jobs:
 cronx:
   gateway:
     url: https://example.com
-    sessionKey: key
+    sessionKey: test-key-12345
     timeout: "60s"
 
 jobs:
@@ -214,7 +214,7 @@ jobs:
 cronx:
   gateway:
     url: https://example.com
-    sessionKey: key
+    sessionKey: test-key-12345
 
 jobs:
   interval-job:
@@ -238,7 +238,7 @@ jobs:
 cronx:
   gateway:
     url: https://example.com
-    sessionKey: key
+    sessionKey: test-key-12345
 
 jobs:
   prob-job:
@@ -368,7 +368,7 @@ jobs:
 cronx:
   gateway:
     url: \${UNDEFINED_VAR}
-    sessionKey: key
+    sessionKey: test-key-12345
 
 jobs:
   test:
@@ -402,7 +402,7 @@ jobs:
 cronx:
   gateway:
     url: https://example.com
-    sessionKey: key
+    sessionKey: test-key-12345
   defaults:
     retry:
       maxAttempts: 5
@@ -499,7 +499,7 @@ jobs:
 cronx:
   gateway:
     url: https://example.com
-    sessionKey: key
+    sessionKey: test-key-12345
 
 jobs:
   enabled-job:
@@ -535,7 +535,7 @@ jobs:
 cronx:
   gateway:
     url: https://example.com
-    sessionKey: key
+    sessionKey: test-key-12345
 
 jobs:
   prob-job:
