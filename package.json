@@ -1,5 +1,5 @@
 {
-  "name": "cronx",
+  "name": "@rfxlamia/cronx",
   "version": "0.1.0",
   "description": "Random job scheduler for AI agents - making autonomous agents feel natural, not robotic",
   "type": "module",
@@ -29,7 +29,7 @@
     }
   },
   "bin": {
-    "cronx": "./dist/cli.js"
+    "cronx": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -63,12 +63,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/user/cronx.git"
+    "url": "git+https://github.com/rfxlamia/cronx.git"
   },
   "bugs": {
-    "url": "https://github.com/user/cronx/issues"
+    "url": "https://github.com/rfxlamia/cronx/issues"
   },
-  "homepage": "https://github.com/user/cronx#readme",
+  "homepage": "https://github.com/rfxlamia/cronx#readme",
   "dependencies": {
     "better-sqlite3": "^11.0.0",
     "chokidar": "^3.6.0",

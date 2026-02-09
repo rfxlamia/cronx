@@ -26,13 +26,13 @@ CRONX is a scheduling system designed specifically for AI agents. Unlike traditi
 ## Installation
 
 ```bash
-npm install cronx
+npm install @rfxlamia/cronx
 ```
 
 Or with pnpm:
 
 ```bash
-pnpm add cronx
+pnpm add @rfxlamia/cronx
 ```
 
 ---
