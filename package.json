@@ -1,6 +1,6 @@
 {
   "name": "cronx",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Random job scheduler for AI agents - making autonomous agents feel natural, not robotic",
   "type": "module",
   "main": "./dist/index.cjs",
