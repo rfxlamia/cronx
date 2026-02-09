@@ -46,7 +46,7 @@ describe('FileBridge', () => {
     expect(vi.mocked(fs.promises.writeFile)).toHaveBeenCalledWith(
       expect.stringContaining('.tmp'),
       expect.any(String),
-      'utf-8'
+      expect.objectContaining({ encoding: 'utf-8' })
     )
     expect(vi.mocked(fs.promises.rename)).toHaveBeenCalledOnce()
   })

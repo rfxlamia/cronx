@@ -51,6 +51,7 @@ export { SQLiteStore } from './storage/sqlite.js'
 export { loadConfigFromFile, loadConfigFromString, configToJobs, ConfigError, EnvVarError } from './config/loader.js'
 export { CronxConfigSchema } from './config/schema.js'
 export type { CronxConfigOutput, CronxConfigInput } from './config/schema.js'
+export { getDefaultPaths, DEFAULT_CONFIG_DIR, CONFIG_FILE_NAME, DB_FILE_NAME } from './constants.js'
 
 // =============================================================================
 // Type-only Exports

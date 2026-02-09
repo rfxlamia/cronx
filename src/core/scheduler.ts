@@ -109,22 +109,14 @@ export class Scheduler {
    * Loads job states from store and schedules next runs.
    */
   async start(): Promise<void> {
-    if (this.running) {
-      return;
-    }
+    if (this.running) return;
 
     this.running = true;
 
-    // Initialize job states
+    // Initialize and schedule all jobs
     for (const job of this.config.jobs) {
       await this.initializeJobState(job);
-    }
-
-    // Schedule all enabled jobs
-    for (const job of this.config.jobs) {
-      if (job.enabled) {
-        this.scheduleJob(job);
-      }
+      if (job.enabled) this.scheduleJob(job);
     }
   }
 
@@ -134,22 +126,16 @@ export class Scheduler {
    * Cancels all pending timers and saves state.
    */
   async stop(): Promise<void> {
-    if (!this.running) {
-      return;
-    }
+    if (!this.running) return;
 
     this.running = false;
 
     // Clear all timers
-    for (const [name, timer] of this.timers) {
-      clearTimeout(timer);
-      this.timers.delete(name);
-    }
+    this.timers.forEach((timer) => clearTimeout(timer));
+    this.timers.clear();
 
     // Save all job states
-    for (const [, state] of this.states) {
-      this.config.store.saveJobState(state);
-    }
+    this.states.forEach((state) => this.config.store.saveJobState(state));
   }
 
   /**
@@ -201,23 +187,14 @@ export class Scheduler {
    */
   private scheduleJob(job: Job): void {
     const state = this.states.get(job.name);
-    if (!state || state.nextRun === null) {
-      return;
-    }
-
     const strategy = this.strategies.get(job.name);
-    if (!strategy) {
-      return;
-    }
+    if (!state?.nextRun || !strategy) return;
 
-    const now = Date.now();
-    const delay = Math.max(0, state.nextRun - now);
+    const delay = Math.max(0, state.nextRun - Date.now());
 
-    // Clear existing timer
+    // Clear existing timer if any
     const existingTimer = this.timers.get(job.name);
-    if (existingTimer) {
-      clearTimeout(existingTimer);
-    }
+    if (existingTimer) clearTimeout(existingTimer);
 
     // Schedule next execution
     const timer = setTimeout(() => {
@@ -233,27 +210,18 @@ export class Scheduler {
    * Execute a job and schedule its next run.
    */
   private async executeJob(job: Job): Promise<void> {
-    if (!this.running) {
-      return;
-    }
+    if (!this.running) return;
 
     const strategy = this.strategies.get(job.name);
     const state = this.states.get(job.name);
-
-    if (!strategy || !state) {
-      return;
-    }
+    if (!strategy || !state) return;
 
     // For probabilistic strategy, check if we should actually run
-    if (strategy.type === 'probabilistic' && strategy.shouldRun) {
-      if (!strategy.shouldRun()) {
-        // Schedule next check
-        const nextCheck = strategy.getNextCheckTime?.() ?? Date.now() + 60000;
-        state.nextRun = nextCheck;
-        this.config.store.saveJobState(state);
-        this.scheduleJob(job);
-        return;
-      }
+    if (strategy.type === 'probabilistic' && strategy.shouldRun && !strategy.shouldRun()) {
+      state.nextRun = strategy.getNextCheckTime?.() ?? Date.now() + 60000;
+      this.config.store.saveJobState(state);
+      this.scheduleJob(job);
+      return;
     }
 
     // Execute the job
@@ -262,21 +230,13 @@ export class Scheduler {
     // Update state
     const now = Date.now();
     state.lastRun = now;
-
-    if (result.status === 'success') {
-      state.failCount = 0;
-    } else {
-      state.failCount++;
-    }
-
-    // Calculate next run
+    state.failCount = result.status === 'success' ? 0 : state.failCount + 1;
     state.nextRun = strategy.calculateNextRun(now);
 
-    // Save state
+    // Save and reschedule
     this.config.store.saveJobState(state);
     this.states.set(job.name, state);
 
-    // Schedule next run
     if (this.running && state.enabled) {
       this.scheduleJob(job);
     }

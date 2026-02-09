@@ -8,7 +8,6 @@
 
 import { Command } from 'commander';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { loadConfigFromFile, configToJobs } from './config/index.js';
@@ -16,6 +15,7 @@ import { SQLiteStore } from './storage/sqlite.js';
 import { FileBridge } from './gateway/file-bridge.js';
 import { Scheduler } from './core/scheduler.js';
 import { createStrategy } from './strategies/index.js';
+import { getDefaultPaths } from './constants.js';
 
 // =============================================================================
 // ESM Compatibility
@@ -25,31 +25,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // =============================================================================
-// Constants
-// =============================================================================
-
-/** Default config directory */
-const DEFAULT_CONFIG_DIR = path.join(os.homedir(), '.cronx');
-
-/** Default config file name */
-const CONFIG_FILE_NAME = 'cronx.config.yaml';
-
-/** Default database file name */
-const DB_FILE_NAME = 'cronx.db';
-
-// =============================================================================
 // Helper Functions
 // =============================================================================
-
-/**
- * Get default paths
- */
-function getDefaultPaths(): { configPath: string; dbPath: string } {
-  return {
-    configPath: path.join(DEFAULT_CONFIG_DIR, CONFIG_FILE_NAME),
-    dbPath: path.join(DEFAULT_CONFIG_DIR, DB_FILE_NAME),
-  };
-}
 
 /**
  * Format date for display
@@ -60,18 +37,23 @@ function formatDate(date: Date | null): string {
 }
 
 /**
- * Format duration
+ * Format duration using appropriate time unit
  */
 function formatDuration(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
+  const units = [
+    { divisor: 86400000, unit: 'd', sub: 'h', subDiv: 3600000 },
+    { divisor: 3600000, unit: 'h', sub: 'm', subDiv: 60000 },
+    { divisor: 60000, unit: 'm', sub: 's', subDiv: 1000 },
+  ];
 
-  if (days > 0) return `${days}d ${hours % 24}h`;
-  if (hours > 0) return `${hours}h ${minutes % 60}m`;
-  if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
-  return `${seconds}s`;
+  for (const { divisor, unit, sub, subDiv } of units) {
+    const value = Math.floor(ms / divisor);
+    if (value > 0) {
+      const remainder = Math.floor((ms % divisor) / subDiv);
+      return `${value}${unit} ${remainder}${sub}`;
+    }
+  }
+  return `${Math.floor(ms / 1000)}s`;
 }
 
 // =============================================================================

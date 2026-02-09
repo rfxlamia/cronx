@@ -37,12 +37,43 @@ export interface RunResult {
 /** Base delay for backoff calculations (1 second) */
 const BASE_DELAY_MS = 1000;
 
+/** Backoff multipliers by strategy */
+const BACKOFF_MULTIPLIERS: Record<RetryConfig['backoff'], (attempt: number) => number> = {
+  fixed: () => 1,
+  linear: (attempt) => attempt,
+  exponential: (attempt) => Math.pow(2, attempt),
+};
+
+/** Non-retryable error codes */
+const NON_RETRYABLE_CODES = new Set([
+  FileBridgeErrorCode.PERMISSION_DENIED,
+  FileBridgeErrorCode.DISK_FULL,
+]);
+
 /** Default retry configuration */
 const DEFAULT_RETRY: RetryConfig = {
   maxAttempts: 3,
   backoff: 'exponential',
   timeout: 30,
 };
+
+/**
+ * Check if an error should prevent further retries
+ */
+function isNonRetryableError(error: unknown): { stop: boolean; status?: RunStatus } {
+  if (error instanceof Error && error.message === 'TIMEOUT') {
+    return { stop: true, status: 'timeout' };
+  }
+  if (error instanceof FileBridgeError) {
+    if (NON_RETRYABLE_CODES.has(error.code)) {
+      return { stop: true };
+    }
+    if (error.code === FileBridgeErrorCode.CLI_TIMEOUT) {
+      return { stop: true, status: 'timeout' };
+    }
+  }
+  return { stop: false };
+}
 
 // =============================================================================
 // Job Runner
@@ -125,27 +156,12 @@ export class JobRunner {
         lastError = null;
         break;
       } catch (error) {
-        if (error instanceof Error && error.message === 'TIMEOUT') {
-          status = 'timeout';
-          lastError = error;
+        lastError = error instanceof Error ? error : new Error(String(error));
+        const nonRetryable = isNonRetryableError(error);
+        if (nonRetryable.stop) {
+          if (nonRetryable.status) status = nonRetryable.status;
           break;
         }
-
-        if (error instanceof FileBridgeError) {
-          if (
-            error.code === FileBridgeErrorCode.PERMISSION_DENIED ||
-            error.code === FileBridgeErrorCode.DISK_FULL
-          ) {
-            lastError = error;
-            break;
-          }
-          if (error.code === FileBridgeErrorCode.CLI_TIMEOUT) {
-            status = 'timeout';
-            lastError = error;
-            break;
-          }
-        }
-        lastError = error instanceof Error ? error : new Error(String(error));
       }
 
       // If not the last attempt, wait before retry
@@ -249,25 +265,10 @@ export class JobRunner {
 
   /**
    * Calculate backoff delay based on strategy.
-   *
-   * @param attempt - Current attempt number (1-indexed)
-   * @param strategy - Backoff strategy
-   * @returns Delay in milliseconds
    */
-  private calculateBackoffDelay(
-    attempt: number,
-    strategy: RetryConfig['backoff']
-  ): number {
-    switch (strategy) {
-      case 'fixed':
-        return BASE_DELAY_MS;
-      case 'linear':
-        return attempt * BASE_DELAY_MS;
-      case 'exponential':
-        return Math.pow(2, attempt) * BASE_DELAY_MS;
-      default:
-        return BASE_DELAY_MS;
-    }
+  private calculateBackoffDelay(attempt: number, strategy: RetryConfig['backoff']): number {
+    const multiplier = BACKOFF_MULTIPLIERS[strategy] ?? BACKOFF_MULTIPLIERS.fixed;
+    return multiplier(attempt) * BASE_DELAY_MS;
   }
 
   /**

@@ -7,25 +7,11 @@
  * @packageDocumentation
  */
 
-import * as path from 'node:path';
-import * as os from 'node:os';
 import { loadConfigFromFile, configToJobs } from './config/index.js';
 import { SQLiteStore } from './storage/sqlite.js';
 import { FileBridge } from './gateway/file-bridge.js';
 import { Scheduler } from './core/scheduler.js';
-
-// =============================================================================
-// Constants
-// =============================================================================
-
-/** Default config directory */
-const DEFAULT_CONFIG_DIR = path.join(os.homedir(), '.cronx');
-
-/** Default config file name */
-const CONFIG_FILE_NAME = 'cronx.config.yaml';
-
-/** Default database file name */
-const DB_FILE_NAME = 'cronx.db';
+import { getDefaultPaths } from './constants.js';
 
 // =============================================================================
 // Daemon
@@ -37,16 +23,15 @@ const DB_FILE_NAME = 'cronx.db';
 async function main(): Promise<void> {
   console.log('CRONX Daemon starting...');
 
+  const defaults = getDefaultPaths();
+
   // Parse command line args
   const args = process.argv.slice(2);
   const seed = args.find((arg) => arg.startsWith('--seed='))?.split('=')[1];
   const configPath =
-    args.find((arg) => arg.startsWith('--config='))?.split('=')[1] ??
-    path.join(DEFAULT_CONFIG_DIR, CONFIG_FILE_NAME);
-
+    args.find((arg) => arg.startsWith('--config='))?.split('=')[1] ?? defaults.configPath;
   const dbPath =
-    args.find((arg) => arg.startsWith('--db='))?.split('=')[1] ??
-    path.join(DEFAULT_CONFIG_DIR, DB_FILE_NAME);
+    args.find((arg) => arg.startsWith('--db='))?.split('=')[1] ?? defaults.dbPath;
 
   console.log(`Loading config from: ${configPath}`);
   console.log(`Using database: ${dbPath}`);

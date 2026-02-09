@@ -16,6 +16,36 @@ import { FileBridgeError, FileBridgeErrorCode } from '../types.js'
 
 const execFileAsync = promisify(execFile)
 
+/** Map errno codes to FileBridgeErrorCode */
+const ERROR_CODE_MAP: Record<string, FileBridgeErrorCode> = {
+  EACCES: FileBridgeErrorCode.PERMISSION_DENIED,
+  EPERM: FileBridgeErrorCode.PERMISSION_DENIED,
+  ENOSPC: FileBridgeErrorCode.DISK_FULL,
+  EMFILE: FileBridgeErrorCode.TOO_MANY_FILES,
+  ENFILE: FileBridgeErrorCode.TOO_MANY_FILES,
+}
+
+/**
+ * Convert errno to FileBridgeError
+ */
+function toFileBridgeError(
+  err: NodeJS.ErrnoException,
+  context: string,
+  defaultCode = FileBridgeErrorCode.DIR_NOT_WRITABLE
+): FileBridgeError {
+  const code = err.code ? ERROR_CODE_MAP[err.code] ?? defaultCode : defaultCode
+  const messages: Record<FileBridgeErrorCode, string> = {
+    [FileBridgeErrorCode.PERMISSION_DENIED]: `Permission denied: ${context}`,
+    [FileBridgeErrorCode.DISK_FULL]: `Disk full: ${context}`,
+    [FileBridgeErrorCode.TOO_MANY_FILES]: 'Too many open files: System resource limit reached',
+    [FileBridgeErrorCode.DIR_NOT_WRITABLE]: `Failed: ${context} - ${err.message || 'unknown error'}`,
+    [FileBridgeErrorCode.CLI_TIMEOUT]: `CLI timeout: ${context}`,
+    [FileBridgeErrorCode.CLI_FAILED]: `CLI failed: ${context}`,
+    [FileBridgeErrorCode.WRITE_TIMEOUT]: `Write timeout: ${context}`,
+  }
+  return new FileBridgeError(messages[code], code, err)
+}
+
 /**
  * File-based bridge for triggering OpenClaw via CLI.
  */
@@ -46,25 +76,9 @@ export class FileBridge {
       await fs.promises.writeFile(testFile, 'test', 'utf-8')
       await fs.promises.unlink(testFile)
     } catch (error) {
-      const err = error as NodeJS.ErrnoException
-      if (err.code === 'EACCES' || err.code === 'EPERM') {
-        throw new FileBridgeError(
-          `Trigger directory not writable: ${this.config.triggerDir}. Check permissions.`,
-          FileBridgeErrorCode.PERMISSION_DENIED,
-          err
-        )
-      }
-      if (err.code === 'ENOSPC') {
-        throw new FileBridgeError(
-          `Disk full: Cannot write to ${this.config.triggerDir}`,
-          FileBridgeErrorCode.DISK_FULL,
-          err
-        )
-      }
-      throw new FileBridgeError(
-        `Failed to validate trigger directory: ${err.message}`,
-        FileBridgeErrorCode.DIR_NOT_WRITABLE,
-        err
+      throw toFileBridgeError(
+        error as NodeJS.ErrnoException,
+        `Cannot write to ${this.config.triggerDir}`
       )
     }
   }
@@ -83,40 +97,10 @@ export class FileBridge {
       await fs.promises.rename(tempPath, filepath)
       return filepath
     } catch (error) {
-      if (error instanceof FileBridgeError) {
-        throw error
-      }
+      if (error instanceof FileBridgeError) throw error
 
       await fs.promises.unlink(tempPath).catch(() => undefined)
-
-      const err = error as NodeJS.ErrnoException
-      if (err.code === 'EACCES' || err.code === 'EPERM') {
-        throw new FileBridgeError(
-          `Permission denied writing trigger file: ${filepath}`,
-          FileBridgeErrorCode.PERMISSION_DENIED,
-          err
-        )
-      }
-      if (err.code === 'ENOSPC') {
-        throw new FileBridgeError(
-          'Disk full: Cannot write trigger file',
-          FileBridgeErrorCode.DISK_FULL,
-          err
-        )
-      }
-      if (err.code === 'EMFILE' || err.code === 'ENFILE') {
-        throw new FileBridgeError(
-          'Too many open files: System resource limit reached',
-          FileBridgeErrorCode.TOO_MANY_FILES,
-          err
-        )
-      }
-
-      throw new FileBridgeError(
-        `Failed to write trigger file: ${err.message || 'unknown error'}`,
-        FileBridgeErrorCode.DIR_NOT_WRITABLE,
-        err
-      )
+      throw toFileBridgeError(error as NodeJS.ErrnoException, `writing trigger file: ${filepath}`)
     }
   }
 
@@ -162,22 +146,10 @@ export class FileBridge {
    * Test bridge readiness.
    */
   async healthCheck(): Promise<{ writable: boolean; cliAvailable: boolean }> {
-    let writable = false
-    let cliAvailable = false
-
-    try {
-      await this.validateDirectory()
-      writable = true
-    } catch {
-      writable = false
-    }
-
-    try {
-      await execFileAsync(this.config.openclawPath, ['--version'], { timeout: 5000 })
-      cliAvailable = true
-    } catch {
-      cliAvailable = false
-    }
+    const writable = await this.validateDirectory().then(() => true).catch(() => false)
+    const cliAvailable = await execFileAsync(this.config.openclawPath, ['--version'], { timeout: 5000 })
+      .then(() => true)
+      .catch(() => false)
 
     return { writable, cliAvailable }
   }
@@ -194,21 +166,18 @@ export class FileBridge {
     content: string,
     timeoutMs: number
   ): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(new FileBridgeError('Write timeout', FileBridgeErrorCode.WRITE_TIMEOUT))
-      }, timeoutMs)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
-      fs.promises
-        .writeFile(filepath, content, 'utf-8')
-        .then(() => {
-          clearTimeout(timeoutId)
-          resolve()
-        })
-        .catch((error) => {
-          clearTimeout(timeoutId)
-          reject(error)
-        })
-    })
+    try {
+      await fs.promises.writeFile(filepath, content, { encoding: 'utf-8', signal: controller.signal })
+    } catch (error) {
+      if ((error as Error).name === 'AbortError') {
+        throw new FileBridgeError('Write timeout', FileBridgeErrorCode.WRITE_TIMEOUT)
+      }
+      throw error
+    } finally {
+      clearTimeout(timeoutId)
+    }
   }
 }
