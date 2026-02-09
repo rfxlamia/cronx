@@ -84,41 +84,53 @@ export const JobSchema = z.object({
 // Root Config Schema
 // =============================================================================
 
-export const CronxConfigSchema = z.object({
-  cronx: z.object({
-    version: z.number().default(1),
-    timezone: z.string().default('UTC'),
-    gateway: z.object({
-      url: z.string().url().refine(
-        (url) => url.startsWith('https://') ||
-                 url.startsWith('http://127.0.0.1') ||
-                 url.startsWith('http://localhost'),
-        { message: 'Gateway URL must use HTTPS (HTTP allowed only for localhost)' }
-      ),
-      sessionKey: z.string().min(8, 'Session key must be at least 8 characters'),
-      timeout: z
-        .string()
-        .or(z.number())
-        .transform((v) => {
-          if (typeof v === 'number') return v
-          const match = v.match(/^(\d+)s?$/)
-          return match ? parseInt(match[1]) : 30
-        })
-        .default(30),
-    }),
-    triggerDir: z.string().default('/root/.cronx/triggers'),
-    openclawPath: z.string().default('openclaw'),
-    defaultRecipient: z.string().default('+6289648535538'),
-    cliTimeoutMs: z.number().int().min(10000).max(300000).default(60000),
-    writeTimeoutMs: z.number().int().min(1000).max(120000).default(10000),
-    defaults: z
-      .object({
-        retry: RetryConfigSchema.default({}),
-        circuitBreaker: CircuitBreakerConfigSchema.default({}),
-        onFailure: z.enum(['notify', 'silent', 'escalate']).default('notify'),
+const CronxCoreSchema = z.object({
+  version: z.number().default(1),
+  timezone: z.string().default('UTC'),
+  gateway: z.object({
+    url: z.string().url().refine(
+      (url) => url.startsWith('https://') ||
+               url.startsWith('http://127.0.0.1') ||
+               url.startsWith('http://localhost'),
+      { message: 'Gateway URL must use HTTPS (HTTP allowed only for localhost)' }
+    ),
+    sessionKey: z.string().min(8, 'Session key must be at least 8 characters'),
+    timeout: z
+      .string()
+      .or(z.number())
+      .transform((v) => {
+        if (typeof v === 'number') return v
+        const match = v.match(/^(\d+)s?$/)
+        return match ? parseInt(match[1]) : 30
       })
-      .default({}),
-  }),
+      .default(30),
+  }).optional(),
+  triggerDir: z.string().default('/root/.cronx/triggers'),
+  openclawPath: z.string().default('openclaw'),
+  defaultRecipient: z.string().default('+6289648535538'),
+  cliTimeoutMs: z.number().int().min(10000).max(300000).default(60000),
+  writeTimeoutMs: z.number().int().min(1000).max(120000).default(10000),
+  defaults: z
+    .object({
+      retry: RetryConfigSchema.default({}),
+      circuitBreaker: CircuitBreakerConfigSchema.default({}),
+      onFailure: z.enum(['notify', 'silent', 'escalate']).default('notify'),
+    })
+    .default({}),
+})
+
+export const CronxConfigSchema = z.object({
+  cronx: CronxCoreSchema.refine(
+    (data) => {
+      // Must have either gateway (HTTP mode) or valid triggerDir (FileBridge mode)
+      const hasGateway = data.gateway !== undefined
+      const hasFileBridge = data.triggerDir !== undefined && data.triggerDir.length > 0
+      return hasGateway || hasFileBridge
+    },
+    {
+      message: "Must have either 'gateway' (HTTP mode) or 'triggerDir' (FileBridge mode) configured",
+    }
+  ),
   jobs: z.record(z.string(), JobSchema),
 })
 
