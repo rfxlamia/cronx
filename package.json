@@ -63,12 +63,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/user/cronx.git"
+    "url": "git+https://github.com/rfxlamia/cronx.git"
   },
   "bugs": {
-    "url": "https://github.com/user/cronx/issues"
+    "url": "https://github.com/rfxlamia/cronx/issues"
   },
-  "homepage": "https://github.com/user/cronx#readme",
+  "homepage": "https://github.com/rfxlamia/cronx#readme",
   "dependencies": {
     "better-sqlite3": "^11.0.0",
     "chokidar": "^3.6.0",

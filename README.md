@@ -26,13 +26,13 @@ CRONX is a scheduling system designed specifically for AI agents. Unlike traditi
 ## Installation
 
 ```bash
-npm install cronx
+npm install @rfxlamia/cronx
 ```
 
 Or with pnpm:
 
 ```bash
-pnpm add cronx
+pnpm add @rfxlamia/cronx
 ```
 
 ---
@@ -290,7 +290,7 @@ gateway:
 ### Basic Example
 
 ```typescript
-import { Scheduler, SQLiteStore, GatewayClient, loadConfigFromFile, configToJobs } from 'cronx';
+import { Scheduler, SQLiteStore, GatewayClient, loadConfigFromFile, configToJobs } from '@rfxlamia/cronx';
 
 // Load configuration
 const config = loadConfigFromFile('~/.cronx/cronx.config.yaml');
@@ -318,7 +318,7 @@ await scheduler.start();
 ### Using Individual Strategies
 
 ```typescript
-import { WindowStrategy, IntervalStrategy, ProbabilisticStrategy } from 'cronx/strategies';
+import { WindowStrategy, IntervalStrategy, ProbabilisticStrategy } from '@rfxlamia/cronx/strategies';
 
 // Window strategy
 const window = new WindowStrategy({
