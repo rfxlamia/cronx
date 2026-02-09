@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { loadConfigFromFile, configToJobs } from './config/index.js';
 import { SQLiteStore } from './storage/sqlite.js';
-import { GatewayClient } from './gateway/client.js';
+import { FileBridge } from './gateway/file-bridge.js';
 import { Scheduler } from './core/scheduler.js';
 import { createStrategy } from './strategies/index.js';
 
@@ -133,16 +133,24 @@ program
       }
 
       const store = new SQLiteStore(dbPath);
-      const gateway = new GatewayClient({
-        url: configData.cronx.gateway.url,
-        sessionKey: configData.cronx.gateway.sessionKey,
-        timeout: configData.cronx.gateway.timeout,
+      const bridge = new FileBridge({
+        triggerDir: configData.cronx.triggerDir,
+        openclawPath: configData.cronx.openclawPath,
+        defaultRecipient: configData.cronx.defaultRecipient,
+        cliTimeoutMs: configData.cronx.cliTimeoutMs,
+        writeTimeoutMs: configData.cronx.writeTimeoutMs,
       });
+
+      await bridge.validateDirectory();
+      const health = await bridge.healthCheck();
+      if (!health.cliAvailable) {
+        throw new Error('OpenClaw CLI not available. Ensure "openclaw" is in PATH.');
+      }
 
       const scheduler = new Scheduler({
         jobs,
         store,
-        gateway,
+        bridge,
         timezone: configData.cronx.timezone,
         seed: options.seed,
       });

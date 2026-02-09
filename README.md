@@ -26,13 +26,13 @@ CRONX is a scheduling system designed specifically for AI agents. Unlike traditi
 ## Installation
 
 ```bash
-npm install @rfxlamia/cronx
+npm install cronx
 ```
 
 Or with pnpm:
 
 ```bash
-pnpm add @rfxlamia/cronx
+pnpm add cronx
 ```
 
 ---
@@ -52,6 +52,12 @@ cronx:
     url: "http://127.0.0.1:18789/api/v1/sessions/send"
     sessionKey: "agent:main:main"
     timeout: 30s
+
+  triggerDir: "/root/.cronx/triggers"
+  openclawPath: "openclaw"
+  defaultRecipient: "+6289648535538"
+  cliTimeoutMs: 60000
+  writeTimeoutMs: 10000
 
   defaults:
     retry:
@@ -74,6 +80,10 @@ jobs:
       distribution: weighted
     action:
       message: "Run skill: phd-research"
+      deliver: true
+    sessionTarget: isolated
+    recipient: "+6289648535538"
+    thinking: medium
     enabled: true
 ```
 
@@ -208,6 +218,11 @@ cronx:
     url: "http://..."          # Gateway URL
     sessionKey: "agent:main"   # Session key for auth
     timeout: 30s               # Request timeout
+  triggerDir: "/root/.cronx/triggers"  # Trigger file directory
+  openclawPath: "openclaw"             # OpenClaw CLI binary
+  defaultRecipient: "+628..."          # Recipient fallback
+  cliTimeoutMs: 60000                  # CLI timeout
+  writeTimeoutMs: 10000                # File write timeout
 
   defaults:
     retry: { ... }             # Default retry config
@@ -235,8 +250,12 @@ job_name:
   action:
     message: "Message to send"
     priority: normal           # low | normal | high
+    deliver: true              # Execute CLI deliver step
 
   # Optional overrides:
+  sessionTarget: isolated      # isolated | main
+  recipient: "+628..."
+  thinking: medium             # off | minimal | low | medium | high
   retry:
     maxAttempts: 3
     backoff: exponential       # fixed | linear | exponential

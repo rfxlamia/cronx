@@ -7,8 +7,10 @@
  */
 
 import type { Job, RunRecord, RunStatus, RetryConfig } from '../types.js';
+import type { FileBridge } from '../gateway/file-bridge.js';
 import type { GatewayClient } from '../gateway/client.js';
 import type { SQLiteStore } from '../storage/sqlite.js';
+import { FileBridgeError, FileBridgeErrorCode } from '../types.js';
 
 // =============================================================================
 // Types
@@ -59,17 +61,22 @@ const DEFAULT_RETRY: RetryConfig = {
  * ```
  */
 export class JobRunner {
-  private readonly gateway: GatewayClient;
+  private readonly bridge?: FileBridge;
+  private readonly gateway?: GatewayClient;
   private readonly store: SQLiteStore;
 
   /**
    * Create a new JobRunner.
    *
-   * @param gateway - Gateway client for sending messages
+   * @param executor - File bridge (new path) or gateway client (legacy path)
    * @param store - SQLite store for recording runs
    */
-  constructor(gateway: GatewayClient, store: SQLiteStore) {
-    this.gateway = gateway;
+  constructor(executor: FileBridge | GatewayClient, store: SQLiteStore) {
+    if (this.isFileBridge(executor)) {
+      this.bridge = executor
+    } else {
+      this.gateway = executor
+    }
     this.store = store;
   }
 
@@ -91,21 +98,52 @@ export class JobRunner {
       attempts++;
 
       try {
-        // Execute with timeout
-        const response = await this.executeWithTimeout(job, retryConfig.timeout);
+        if (this.bridge) {
+          const payload = {
+            jobName: job.name,
+            message: job.action.message,
+            priority: job.action.priority,
+            timestamp: Date.now(),
+            sessionTarget: job.sessionTarget ?? 'isolated',
+            recipient: job.recipient,
+            thinking: job.thinking ?? 'medium',
+          };
 
-        if (response.success) {
-          status = 'success';
-          lastError = null;
-          break;
+          await this.bridge.trigger(payload);
+
+          if (job.action.deliver !== false) {
+            await this.bridge.executeCLI(payload);
+          }
         } else {
-          lastError = new Error(response.error || 'Unknown gateway error');
+          const response = await this.executeWithTimeout(job, retryConfig.timeout);
+          if (!response.success) {
+            throw new Error(response.error || 'Unknown gateway error');
+          }
         }
+
+        status = 'success';
+        lastError = null;
+        break;
       } catch (error) {
         if (error instanceof Error && error.message === 'TIMEOUT') {
           status = 'timeout';
           lastError = error;
-          break; // Don't retry on timeout
+          break;
+        }
+
+        if (error instanceof FileBridgeError) {
+          if (
+            error.code === FileBridgeErrorCode.PERMISSION_DENIED ||
+            error.code === FileBridgeErrorCode.DISK_FULL
+          ) {
+            lastError = error;
+            break;
+          }
+          if (error.code === FileBridgeErrorCode.CLI_TIMEOUT) {
+            status = 'timeout';
+            lastError = error;
+            break;
+          }
         }
         lastError = error instanceof Error ? error : new Error(String(error));
       }
@@ -133,12 +171,10 @@ export class JobRunner {
 
     this.store.recordRun(runRecord);
 
-    // Handle failure notification
     if (status !== 'success' && job.onFailure !== 'silent') {
       try {
         await this.handleFailure(job, lastError);
       } catch (err) {
-        // Log but don't throw - don't let notification failure mask job failure
         console.error('Failed to send failure notification:', err);
       }
     }
@@ -151,19 +187,28 @@ export class JobRunner {
     };
   }
 
-  /**
-   * Execute the job action with a timeout.
-   */
+  private isFileBridge(executor: FileBridge | GatewayClient): executor is FileBridge {
+    return (
+      typeof (executor as FileBridge).trigger === 'function' &&
+      typeof (executor as FileBridge).executeCLI === 'function'
+    )
+  }
+
   private async executeWithTimeout(
     job: Job,
     timeoutSeconds: number
   ): Promise<{ success: boolean; error?: string }> {
+    const gateway = this.gateway
+    if (!gateway) {
+      throw new Error('Legacy gateway timeout path called with FileBridge')
+    }
+
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         reject(new Error('TIMEOUT'));
       }, timeoutSeconds * 1000);
 
-      this.gateway
+      gateway
         .trigger({
           message: job.action.message,
           priority: job.action.priority,
@@ -177,6 +222,29 @@ export class JobRunner {
           reject(error);
         });
     });
+  }
+
+  private async handleFailure(job: Job, error: Error | null): Promise<void> {
+    const errorMsg = error?.message || 'Unknown error';
+    const prefix = job.onFailure === 'escalate' ? '[ESCALATE] ' : '';
+    const failureMessage = `${prefix}Job '${job.name}' failed: ${errorMsg}`
+
+    if (this.gateway) {
+      await this.gateway.notify(failureMessage, 'high');
+      return
+    }
+
+    if (this.bridge) {
+      await this.bridge.executeCLI({
+        jobName: `${job.name}-failure-notify`,
+        message: failureMessage,
+        priority: 'high',
+        timestamp: Date.now(),
+        sessionTarget: job.sessionTarget ?? 'isolated',
+        recipient: job.recipient,
+        thinking: job.thinking ?? 'medium',
+      })
+    }
   }
 
   /**
@@ -200,15 +268,6 @@ export class JobRunner {
       default:
         return BASE_DELAY_MS;
     }
-  }
-
-  /**
-   * Handle job failure notification.
-   */
-  private async handleFailure(job: Job, error: Error | null): Promise<void> {
-    const errorMsg = error?.message || 'Unknown error';
-    const prefix = job.onFailure === 'escalate' ? '[ESCALATE] ' : '';
-    await this.gateway.notify(`${prefix}Job '${job.name}' failed: ${errorMsg}`, 'high');
   }
 
   /**

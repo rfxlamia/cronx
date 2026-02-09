@@ -160,7 +160,11 @@ export function configToJobs(config: CronxConfigOutput, options: ConfigToJobsOpt
       action: {
         message: jobConfig.action.message,
         priority: jobConfig.action.priority,
+        deliver: jobConfig.action.deliver,
       },
+      sessionTarget: jobConfig.sessionTarget,
+      recipient: jobConfig.recipient,
+      thinking: jobConfig.thinking,
       retry: jobConfig.retry ?? config.cronx.defaults.retry,
       circuitBreaker: jobConfig.circuitBreaker ?? config.cronx.defaults.circuitBreaker,
       onFailure: jobConfig.onFailure ?? config.cronx.defaults.onFailure,

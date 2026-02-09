@@ -11,7 +11,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { loadConfigFromFile, configToJobs } from './config/index.js';
 import { SQLiteStore } from './storage/sqlite.js';
-import { GatewayClient } from './gateway/client.js';
+import { FileBridge } from './gateway/file-bridge.js';
 import { Scheduler } from './core/scheduler.js';
 
 // =============================================================================
@@ -72,18 +72,34 @@ async function main(): Promise<void> {
   // Initialize store
   const store = new SQLiteStore(dbPath);
 
-  // Initialize gateway client
-  const gateway = new GatewayClient({
-    url: config.cronx.gateway.url,
-    sessionKey: config.cronx.gateway.sessionKey,
-    timeout: config.cronx.gateway.timeout,
+  // Initialize file bridge
+  const bridge = new FileBridge({
+    triggerDir: config.cronx.triggerDir,
+    openclawPath: config.cronx.openclawPath,
+    defaultRecipient: config.cronx.defaultRecipient,
+    cliTimeoutMs: config.cronx.cliTimeoutMs,
+    writeTimeoutMs: config.cronx.writeTimeoutMs,
   });
+
+  try {
+    await bridge.validateDirectory();
+    console.log('Trigger directory validated');
+  } catch (error) {
+    console.error('Failed to validate trigger directory:', error);
+    process.exit(1);
+  }
+
+  const health = await bridge.healthCheck();
+  if (!health.cliAvailable) {
+    console.error('OpenClaw CLI not available. Ensure "openclaw" is in PATH.');
+    process.exit(1);
+  }
 
   // Create scheduler
   const scheduler = new Scheduler({
     jobs,
     store,
-    gateway,
+    bridge,
     timezone: config.cronx.timezone,
     seed,
   });

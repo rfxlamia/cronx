@@ -163,7 +163,15 @@ export interface Job {
     message: string
     /** Message priority */
     priority?: 'low' | 'normal' | 'high'
+    /** Whether to deliver immediately via CLI */
+    deliver?: boolean
   }
+  /** Target session for execution */
+  sessionTarget?: 'isolated' | 'main'
+  /** Recipient number (E.164 format) */
+  recipient?: string
+  /** Thinking level for agent */
+  thinking?: 'off' | 'minimal' | 'low' | 'medium' | 'high'
   /** Retry configuration (optional, uses defaults if not set) */
   retry?: RetryConfig
   /** Circuit breaker configuration (optional, uses defaults if not set) */
@@ -251,6 +259,75 @@ export interface GatewayResponse {
 }
 
 // =============================================================================
+// File Bridge Types
+// =============================================================================
+
+/**
+ * Configuration for file-based bridge
+ */
+export interface FileBridgeConfig {
+  /** Directory to write trigger files */
+  triggerDir: string
+  /** File extension for trigger files */
+  extension: string
+  /** OpenClaw CLI command path */
+  openclawPath: string
+  /** Default recipient for messages */
+  defaultRecipient: string
+  /** Timeout for CLI execution in ms */
+  cliTimeoutMs: number
+  /** Timeout for trigger file write in ms */
+  writeTimeoutMs: number
+}
+
+/**
+ * Payload for trigger file
+ */
+export interface TriggerPayload {
+  /** Unique job identifier */
+  jobName: string
+  /** Message/payload for the job */
+  message: string
+  /** Priority of the job */
+  priority?: 'low' | 'normal' | 'high'
+  /** Timestamp when triggered */
+  timestamp: number
+  /** Target session type */
+  sessionTarget?: 'isolated' | 'main'
+  /** Recipient number (E.164 format) */
+  recipient?: string
+  /** Thinking level for agent */
+  thinking?: 'off' | 'minimal' | 'low' | 'medium' | 'high'
+}
+
+/**
+ * Error codes for FileBridge operations
+ */
+export enum FileBridgeErrorCode {
+  DIR_NOT_WRITABLE = 'DIR_NOT_WRITABLE',
+  DISK_FULL = 'DISK_FULL',
+  PERMISSION_DENIED = 'PERMISSION_DENIED',
+  TOO_MANY_FILES = 'TOO_MANY_FILES',
+  CLI_TIMEOUT = 'CLI_TIMEOUT',
+  CLI_FAILED = 'CLI_FAILED',
+  WRITE_TIMEOUT = 'WRITE_TIMEOUT',
+}
+
+/**
+ * Error wrapper for FileBridge failures.
+ */
+export class FileBridgeError extends Error {
+  constructor(
+    message: string,
+    public readonly code: FileBridgeErrorCode,
+    public readonly originalError?: Error
+  ) {
+    super(message)
+    this.name = 'FileBridgeError'
+  }
+}
+
+// =============================================================================
 // Config Types
 // =============================================================================
 
@@ -262,7 +339,7 @@ export interface CronxConfig {
   version: number
   /** Default timezone for jobs */
   timezone: string
-  /** Gateway configuration */
+  /** Gateway configuration (legacy path) */
   gateway: {
     /** Gateway URL */
     url: string
@@ -270,6 +347,17 @@ export interface CronxConfig {
     sessionKey: string
     /** Request timeout in milliseconds */
     timeout: number
+  }
+  /** File bridge configuration (new path) */
+  bridge?: {
+    /** Directory for trigger files */
+    triggerDir: string
+    /** Path to OpenClaw CLI executable */
+    openclawPath: string
+    /** Default recipient (E.164 format) */
+    defaultRecipient: string
+    /** CLI timeout in milliseconds */
+    cliTimeoutMs: number
   }
   /** Default configurations */
   defaults: {

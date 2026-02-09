@@ -56,6 +56,7 @@ export const ProbabilisticConfigSchema = z.object({
 export const ActionSchema = z.object({
   message: z.string(),
   priority: z.enum(['low', 'normal', 'high']).default('normal'),
+  deliver: z.boolean().default(true),
 })
 
 // =============================================================================
@@ -70,6 +71,9 @@ export const JobSchema = z.object({
   interval: IntervalConfigSchema.optional(),
   probabilistic: ProbabilisticConfigSchema.optional(),
   action: ActionSchema,
+  sessionTarget: z.enum(['isolated', 'main']).optional(),
+  recipient: z.string().optional(),
+  thinking: z.enum(['off', 'minimal', 'low', 'medium', 'high']).optional(),
   enabled: z.boolean().default(true),
   retry: RetryConfigSchema.optional(),
   circuitBreaker: CircuitBreakerConfigSchema.optional(),
@@ -102,6 +106,11 @@ export const CronxConfigSchema = z.object({
         })
         .default(30),
     }),
+    triggerDir: z.string().default('/root/.cronx/triggers'),
+    openclawPath: z.string().default('openclaw'),
+    defaultRecipient: z.string().default('+6289648535538'),
+    cliTimeoutMs: z.number().int().min(10000).max(300000).default(60000),
+    writeTimeoutMs: z.number().int().min(1000).max(120000).default(10000),
     defaults: z
       .object({
         retry: RetryConfigSchema.default({}),

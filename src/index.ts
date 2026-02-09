@@ -36,6 +36,7 @@ export {
 
 export { GatewayClient, GatewayError, GatewayTimeoutError } from './gateway/client.js'
 export type { GatewayClientConfig, TriggerRequest } from './gateway/client.js'
+export { FileBridge } from './gateway/file-bridge.js'
 
 // =============================================================================
 // Storage Exports
@@ -79,6 +80,9 @@ export type {
   // Gateway types
   GatewayRequest,
   GatewayResponse,
+  FileBridgeConfig,
+  TriggerPayload,
+  FileBridgeErrorCode,
 
   // Config types
   CronxConfig,

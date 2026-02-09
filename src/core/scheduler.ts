@@ -8,6 +8,7 @@
 
 import type { Job, JobState } from '../types.js';
 import type { SQLiteStore } from '../storage/sqlite.js';
+import type { FileBridge } from '../gateway/file-bridge.js';
 import type { GatewayClient } from '../gateway/client.js';
 import { JobRunner } from './job-runner.js';
 import { createStrategy, type StrategyWrapper } from '../strategies/index.js';
@@ -24,8 +25,10 @@ export interface SchedulerConfig {
   jobs: Job[];
   /** SQLite store for persistence */
   store: SQLiteStore;
-  /** Gateway client for job execution */
-  gateway: GatewayClient;
+  /** File bridge for job execution (new path) */
+  bridge?: FileBridge;
+  /** Gateway client for job execution (legacy path) */
+  gateway?: GatewayClient;
   /** Default timezone for jobs */
   timezone: string;
   /** Optional seed for reproducible randomness */
@@ -60,7 +63,7 @@ export interface JobStatus {
  * const scheduler = new Scheduler({
  *   jobs,
  *   store,
- *   gateway,
+ *   bridge, // or gateway
  *   timezone: 'Asia/Jakarta',
  * });
  *
@@ -84,7 +87,14 @@ export class Scheduler {
    */
   constructor(config: SchedulerConfig) {
     this.config = config;
-    this.runner = new JobRunner(config.gateway, config.store);
+    if (config.bridge && config.gateway) {
+      throw new Error('Scheduler accepts either bridge or gateway, not both');
+    }
+    const executor = config.bridge ?? config.gateway;
+    if (!executor) {
+      throw new Error('Scheduler requires either bridge or gateway');
+    }
+    this.runner = new JobRunner(executor, config.store);
 
     // Initialize strategies for each job
     for (const job of config.jobs) {
