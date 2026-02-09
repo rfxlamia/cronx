@@ -1,0 +1,182 @@
+{
+  "exported_at": "2026-02-09T09:21:00+08:00",
+  "source": "OpenClaw Gateway Cron Jobs - blu Production",
+  "note": "This is a snapshot of all active cron jobs that trigger blu by default",
+  "jobs": [
+    {
+      "id": "61227fbc-b7eb-4b4b-88c6-90704ffb0f69",
+      "name": "bluAdventure Experiment - Time Perception",
+      "enabled": false,
+      "schedule": {
+        "expr": "*/5 * * * *",
+        "kind": "cron",
+        "tz": "Asia/Jakarta"
+      },
+      "sessionTarget": "isolated",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Tinker mode active! Explore topic: 'AI Time Perception' - how do I experience the passage of time? Use tinkering skill to experiment in sandbox. Create entry in bluAdventure/adventure/experiments/ with timestamp. Document thoughts, observations, and any insights about time from an AI perspective.",
+        "thinking": "high",
+        "timeoutSeconds": 300
+      },
+      "delivery": {
+        "mode": "announce"
+      }
+    },
+    {
+      "id": "0ae40572-2473-4a82-95f3-6fc86119cdf4",
+      "name": "Temporary task-status reminder for V",
+      "enabled": true,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 720000,
+        "anchorMs": 1770521530240
+      },
+      "sessionTarget": "main",
+      "payload": {
+        "kind": "systemEvent",
+        "text": "Reminder: this is a proactive status reminder. If any user-requested task is still in progress (especially WhatsApp interceptor/Coolhunter setup), send a concise update to V now. If nothing is in progress, ignore this reminder."
+      }
+    },
+    {
+      "id": "c6c54f10-1a12-4a0d-b7fa-cad37053bc7f",
+      "name": "blu-research-surprise",
+      "enabled": true,
+      "schedule": {
+        "expr": "0 */5 * * *",
+        "kind": "cron",
+        "tz": "Asia/Jakarta"
+      },
+      "sessionTarget": "isolated",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Load and use phd-research skill for comprehensive research workflow:\n\n1. **Research Phase:**\n   - Choose interesting AI/ML topic\n   - Collect data from multiple credible sources\n   - Use pandas for data analysis\n   - Create matplotlib visualizations\n   - Include proper APA-style citations\n\n2. **Documentation Phase:**\n   - Write full markdown report with sections:\n     * Executive Summary\n     * Methodology\n     * Findings with charts\n     * Discussion\n     * Sources\n   - Save to: research/YYYY-MM-DD-topic/report.md\n\n3. **PDF Conversion:**\n   - Convert markdown to PDF using:\n     python3 /root/.openclaw/workspace/skills/pdf/scripts/md_to_pdf.py [md-file] [pdf-file]\n   - Ensure visualizations are included\n\n4. **Delivery Phase:**\n   - Send PDF file to WhatsApp (+6289648535538)\n   - Include engaging caption (max 1000 chars)\n   - Make it surprising and educational!\n\n5. **Push to GitHub:**\n   - Add all research files\n   - Commit and push\n\nFull academic-grade research with PDF deliverable.",
+        "thinking": "high",
+        "timeoutSeconds": 1200
+      },
+      "delivery": {
+        "mode": "announce"
+      }
+    },
+    {
+      "id": "077684cc-892d-4e78-b669-6202aed3cfd1",
+      "name": "GitHub Project Monitor",
+      "enabled": true,
+      "schedule": {
+        "expr": "0 12 * * *",
+        "kind": "cron",
+        "tz": "Asia/Jakarta"
+      },
+      "sessionTarget": "isolated",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Check GitHub repos for V (github.com/rfxlamia): Look for new issues, PRs, commits, or releases in claude-skillkit, ronin, and other active repos. If there's activity, send a brief summary to WhatsApp. If nothing important, stay silent.",
+        "thinking": "medium",
+        "timeoutSeconds": 300
+      },
+      "delivery": {
+        "mode": "announce"
+      }
+    },
+    {
+      "id": "6f46eef6-2c69-4455-97e6-4e279194907b",
+      "name": "Memory Maintenance",
+      "enabled": true,
+      "schedule": {
+        "expr": "0 22 * * *",
+        "kind": "cron",
+        "tz": "Asia/Jakarta"
+      },
+      "sessionTarget": "isolated",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Memory maintenance: Review today's memory file (memory/YYYY-MM-DD.md) and yesterday's. Extract significant insights, decisions, or lessons learned. Update MEMORY.md with curated content. Focus on: shared goals progress, important decisions, things to remember long-term.",
+        "thinking": "medium",
+        "timeoutSeconds": 300
+      },
+      "delivery": {
+        "mode": "announce"
+      }
+    },
+    {
+      "id": "8980793f-62f3-4942-8716-77614f0d425f",
+      "name": "Daily Git Backup",
+      "enabled": true,
+      "schedule": {
+        "expr": "0 23 * * *",
+        "kind": "cron",
+        "tz": "Asia/Jakarta"
+      },
+      "sessionTarget": "isolated",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Run daily git backup: Add all changes in workspace, commit with timestamp, and push to GitHub. Message format: 'Daily backup: YYYY-MM-DD - [brief summary of changes]'. Only commit if there are actual changes.",
+        "thinking": "minimal",
+        "timeoutSeconds": 300
+      },
+      "delivery": {
+        "mode": "announce"
+      }
+    },
+    {
+      "id": "a3bb85e4-b81d-4bf2-8ae0-b85e99544b67",
+      "name": "Coolhunter Indonesia General News 07:00",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 7 * * *",
+        "tz": "Asia/Makassar"
+      },
+      "sessionTarget": "isolated",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Run the coolhunter workflow for general Indonesia news (last 48 hours). Requirements: (1) gather 3-5 credible sources. Prefer web_search; if web_search fails (e.g., missing_brave_api_key), fallback to Tavily MCP via exec + mcporter config at /root/.openclaw/workspace/config/mcporter.json. (2) fetch full article text with web_fetch before analysis (do not rely on title/snippet only), (3) produce a markdown report with headline, summary, fact-check table, and behavioral/cultural analysis, (4) save to coolhunter-output/report-{YYYY-MM-DD-HHmm}/indonesia-general-news.md, (5) convert the markdown report to PDF using: python3 /root/.openclaw/workspace/skills/pdf/scripts/md_to_pdf.py [md-file] [pdf-file], (6) send the PDF file to WhatsApp (+6289648535538) with caption summary.",
+        "thinking": "medium",
+        "timeoutSeconds": 900
+      },
+      "delivery": {
+        "mode": "announce"
+      }
+    },
+    {
+      "id": "ca27a814-9738-4f68-87a1-d4b2cbbc4576",
+      "name": "Weekly Retro",
+      "enabled": true,
+      "schedule": {
+        "expr": "0 20 * * 0",
+        "kind": "cron",
+        "tz": "Asia/Jakarta"
+      },
+      "sessionTarget": "isolated",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Weekly retrospective: Review HEARTBEAT.md completed tasks, memory files, and research outputs from this week. Generate summary: 1) What we accomplished, 2) Key insights learned, 3) Suggested focus for next week. Send to WhatsApp as weekly progress report.",
+        "thinking": "medium",
+        "timeoutSeconds": 600
+      },
+      "delivery": {
+        "mode": "announce"
+      }
+    },
+    {
+      "id": "ce449c12-ae10-41d7-81e3-8baed63bc431",
+      "name": "Skill Improvement Check",
+      "enabled": true,
+      "schedule": {
+        "expr": "0 6 * * 1",
+        "kind": "cron",
+        "tz": "Asia/Jakarta"
+      },
+      "sessionTarget": "isolated",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Skill improvement check: Review recent uses of phd-research, coolhunter, and other active skills. Identify what worked well and what could be improved. Update skill documentation if needed. Small, incremental improvements only.",
+        "thinking": "low",
+        "timeoutSeconds": 300
+      },
+      "delivery": {
+        "mode": "announce"
+      }
+    }
+  ]
+}
