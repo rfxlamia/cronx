@@ -1,10 +1,26 @@
 # CRONX
 
-**Random Job Scheduler for AI Agents**
+**Probabilistic Job Scheduler for AI Agents** *(Beta)*
 
-Makes autonomous agents feel natural, not robotic.
-for Blu 💙,  
-so that he can feel a little of the "imperfection" of human time
+Makes autonomous agents feel natural, not robotic.  
+*for Blu 💙, so that he can feel a little of the "imperfection" of human time*
+
+---
+
+## ⚠️ CURRENT STATUS: Beta
+
+CRONX is **experimental software**. The following features are **NOT fully implemented**:
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Probabilistic strategy** | ✅ Working | Fully tested with FileBridge |
+| **Circuit breaker** | ⚠️ Partial | Database table exists, logic NOT implemented |
+| **HTTP Gateway delivery** | ❌ Broken | Timeout issues, do NOT use |
+| **Native daemon mode** | ❌ Non-persistent | Dies when session closes |
+| **Window strategy** | ⚠️ Manual setup | Requires database enable |
+| **Interval strategy** | ⚠️ Manual setup | Requires database enable |
+
+**Recommendation:** Use **Probabilistic + FileBridge only** for production.
 
 ---
 
@@ -12,13 +28,12 @@ so that he can feel a little of the "imperfection" of human time
 
 CRONX is a scheduling system designed specifically for AI agents. Unlike traditional cron schedulers that execute at fixed times, CRONX introduces randomness to make agent behavior feel more human-like and less predictable.
 
-### Key Features
+### What Actually Works
 
-- **Three Scheduling Strategies**: Window, Interval, and Probabilistic
-- **Built-in Resilience**: Retry logic with exponential backoff, circuit breaker pattern
-- **Gateway Integration**: Sends messages to your AI agent gateway
+- **Probabilistic Strategy**: 50/50, 30/70, or any probability-based execution
+- **FileBridge Mode**: Write trigger files (no HTTP exposure, no timeout)
 - **SQLite Persistence**: Tracks job state and execution history
-- **Environment Variable Support**: Use `${VAR:-default}` syntax in config
+- **Retry with Backoff**: Exponential backoff for failed operations
 - **TypeScript First**: Full type safety with comprehensive types
 
 ---
@@ -29,87 +44,98 @@ CRONX is a scheduling system designed specifically for AI agents. Unlike traditi
 npm install @rfxlamia/cronx
 ```
 
-Or with pnpm:
+Or clone from source:
 
 ```bash
-pnpm add @rfxlamia/cronx
+git clone https://github.com/bluworkspace/cronx.git
+cd cronx && npm install && npm run build
 ```
 
 ---
 
-## Quick Start
+## Quick Start (Probabilistic + FileBridge Only)
 
 ### 1. Create Configuration
 
-Create `~/.cronx/cronx.config.yaml`:
+Create `~/.cronx/my-job.yaml`:
 
 ```yaml
 cronx:
   version: 1
   timezone: "Asia/Jakarta"
 
-  gateway:
-    url: "http://127.0.0.1:18789/api/v1/sessions/send"
-    sessionKey: "agent:main:main"
-    timeout: 30s
-
+  # FileBridge config — NO gateway, NO defaultRecipient
   triggerDir: "/root/.cronx/triggers"
   openclawPath: "openclaw"
-  defaultRecipient: "+6289648535538"
   cliTimeoutMs: 60000
   writeTimeoutMs: 10000
 
-  defaults:
-    retry:
-      maxAttempts: 3
-      backoff: exponential
-      timeout: 30
-    circuitBreaker:
-      threshold: 5
-      window: 3600
-      recoveryTime: 600
-    onFailure: notify
-
 jobs:
-  research:
-    description: "Daily AI research"
-    strategy: window
-    window:
-      start: "09:00"
-      end: "11:00"
-      distribution: weighted
+  my_probabilistic_job:
+    description: "Run with 50% chance every hour"
+    strategy: probabilistic
+    probabilistic:
+      checkInterval: 3600   # Check every hour
+      probability: 0.5      # 50% chance to execute
     action:
-      message: "Run skill: phd-research"
-      deliver: true
-    sessionTarget: isolated
-    recipient: "+6289648535538"
-    thinking: medium
+      message: "Do something!"
     enabled: true
 ```
 
-### 2. Start the Scheduler
+**⚠️ DO NOT add:**
+- `gateway` section (will timeout)
+- `defaultRecipient` (will timeout)
+- `deliver: true` (will timeout)
+
+### 2. Enable Job in Database (CRITICAL)
 
 ```bash
-# Run in foreground
-cronx start
-
-# Run as background daemon
-cronx start --daemon
+sqlite3 ~/.cronx/cronx.db "INSERT OR REPLACE INTO jobs (name, enabled, created_at, updated_at) VALUES ('my_probabilistic_job', 1, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000);"
 ```
 
-### 3. Check Status
+Without this step, job shows `[disabled]` and won't run.
+
+### 3. Start with tmux (Required for Persistence)
 
 ```bash
-cronx status
+# Create tmux session
+tmux new-session -d -s cronx "cronx start --config ~/.cronx/my-job.yaml"
+
+# Or run foreground for testing
+cronx start --config ~/.cronx/my-job.yaml
+```
+
+**Note:** `--daemon` flag does NOT persist across session closes. Use tmux.
+
+### 4. Verify
+
+```bash
+cronx status --config ~/.cronx/my-job.yaml
+cronx next --config ~/.cronx/my-job.yaml
 ```
 
 ---
 
 ## Scheduling Strategies
 
-### Window Strategy
+### Probabilistic Strategy (✅ Fully Working)
 
-Execute a job once within a specified time window. The exact execution time is randomly selected within the window.
+Check at regular intervals and execute based on probability.
+
+```yaml
+strategy: probabilistic
+probabilistic:
+  checkInterval: 3600   # Check every hour (seconds)
+  probability: 0.5      # 50% chance to execute
+```
+
+**Use case:** "Maybe check social media each hour, but not every time"
+
+**Real-world behavior:** Expect clustering (multiple triggers close together) and gaps (long periods without triggers). This is genuine randomness, not evenly distributed.
+
+### Window Strategy (⚠️ Manual Setup Required)
+
+Execute a job once within a specified time window.
 
 ```yaml
 strategy: window
@@ -119,34 +145,28 @@ window:
   distribution: weighted  # uniform | gaussian | weighted
 ```
 
-**Use case**: "Run my research task sometime between 9 AM and 11 AM"
+**Use case:** "Run my research task sometime between 9 AM and 11 AM"
 
-### Interval Strategy
+**Setup required:**
+```bash
+sqlite3 ~/.cronx/cronx.db "INSERT OR REPLACE INTO jobs (name, enabled) VALUES ('job_name', 1);"
+```
+
+### Interval Strategy (⚠️ Manual Setup Required)
 
 Execute a job at random intervals between a minimum and maximum duration.
 
 ```yaml
 strategy: interval
 interval:
-  min: 7200       # Minimum interval in seconds (2 hours)
-  max: 14400      # Maximum interval in seconds (4 hours)
-  jitter: 0.2     # Additional randomness factor (0-1)
+  min: 7200       # Minimum interval (2 hours)
+  max: 14400      # Maximum interval (4 hours)
+  jitter: 0.2     # Additional randomness (0-1)
 ```
 
-**Use case**: "Check emails every 2-4 hours with some variability"
+**Use case:** "Check emails every 2-4 hours with some variability"
 
-### Probabilistic Strategy
-
-Check at regular intervals and execute based on probability.
-
-```yaml
-strategy: probabilistic
-probabilistic:
-  checkInterval: 3600   # Check every hour (seconds)
-  probability: 0.3      # 30% chance to execute
-```
-
-**Use case**: "Maybe check social media each hour, but not every time"
+**Setup required:** Same as Window strategy — enable in database.
 
 ---
 
@@ -157,12 +177,14 @@ probabilistic:
 Start the scheduler.
 
 ```bash
-cronx start [options]
+# Run in foreground (debugging)
+cronx start --config ~/.cronx/my-job.yaml
 
-Options:
-  -d, --daemon       Run as background daemon
-  -s, --seed <seed>  Seed for reproducible randomness
-  -c, --config <path>  Path to config file
+# Run with tmux (persistence)
+tmux new-session -d -s cronx "cronx start --config ~/.cronx/my-job.yaml"
+
+# ⚠️ Daemon mode exists but NOT persistent across session closes
+cronx start --daemon --config ~/.cronx/my-job.yaml
 ```
 
 ### `cronx status`
@@ -170,10 +192,7 @@ Options:
 Show current scheduler and job status.
 
 ```bash
-cronx status [options]
-
-Options:
-  -c, --config <path>  Path to config file
+cronx status --config ~/.cronx/my-job.yaml
 ```
 
 ### `cronx list`
@@ -181,93 +200,42 @@ Options:
 List all configured jobs.
 
 ```bash
-cronx list [options]
-
-Options:
-  -c, --config <path>  Path to config file
-  -e, --enabled       Show only enabled jobs
+cronx list --config ~/.cronx/my-job.yaml
 ```
 
 ### `cronx next`
 
-Show next scheduled runs for jobs.
+Show next scheduled runs.
 
 ```bash
-cronx next [job] [options]
-
-Arguments:
-  job                 Job name (optional, shows all if not specified)
-
-Options:
-  -c, --config <path>  Path to config file
-  -n, --count <count>  Number of future runs to show (default: 5)
+cronx next --config ~/.cronx/my-job.yaml
 ```
 
 ---
 
 ## Configuration Reference
 
-### Top-Level Structure
+### Minimal Working Config (Probabilistic)
 
 ```yaml
 cronx:
-  version: 1                    # Config version (required)
-  timezone: "Asia/Jakarta"      # Default timezone (IANA format)
-
-  gateway:
-    url: "http://..."          # Gateway URL
-    sessionKey: "agent:main"   # Session key for auth
-    timeout: 30s               # Request timeout
-  triggerDir: "/root/.cronx/triggers"  # Trigger file directory
-  openclawPath: "openclaw"             # OpenClaw CLI binary
-  defaultRecipient: "+628..."          # Recipient fallback
-  cliTimeoutMs: 60000                  # CLI timeout
-  writeTimeoutMs: 10000                # File write timeout
-
-  defaults:
-    retry: { ... }             # Default retry config
-    circuitBreaker: { ... }    # Default circuit breaker config
-    onFailure: notify          # Default failure action
+  version: 1
+  timezone: "Asia/Jakarta"
+  triggerDir: "/root/.cronx/triggers"
+  openclawPath: "openclaw"
+  cliTimeoutMs: 60000
+  writeTimeoutMs: 10000
 
 jobs:
   job_name:
-    # Job definition
-```
-
-### Job Definition
-
-```yaml
-job_name:
-  description: "Human-readable description"
-  tags: [tag1, tag2]           # Optional categorization
-  strategy: window             # window | interval | probabilistic
-
-  # Strategy-specific config (one of):
-  window: { ... }
-  interval: { ... }
-  probabilistic: { ... }
-
-  action:
-    message: "Message to send"
-    priority: normal           # low | normal | high
-    deliver: true              # Execute CLI deliver step
-
-  # Optional overrides:
-  sessionTarget: isolated      # isolated | main
-  recipient: "+628..."
-  thinking: medium             # off | minimal | low | medium | high
-  retry:
-    maxAttempts: 3
-    backoff: exponential       # fixed | linear | exponential
-    timeout: 30
-
-  circuitBreaker:
-    threshold: 5               # Failures before opening
-    window: 3600               # Counting window (seconds)
-    recoveryTime: 600          # Time before retry (seconds)
-
-  onFailure: notify            # notify | silent | escalate
-  enabled: true
+    description: "Description"
+    strategy: probabilistic
+    probabilistic:
+      checkInterval: 3600
+      probability: 0.5
+    action:
+      message: "Message to agent"
+    enabled: true
 ```
 
 ### Environment Variables
@@ -275,89 +243,11 @@ job_name:
 Use shell-style variable substitution:
 
 ```yaml
-gateway:
-  url: "${CRONX_GATEWAY_URL:-http://localhost:8080}"
-  sessionKey: "${CRONX_SESSION_KEY}"
+triggerDir: "${CRONX_TRIGGER_DIR:-/root/.cronx/triggers}"
 ```
 
-- `${VAR}` - Use variable value
-- `${VAR:-default}` - Use default if not set
-
----
-
-## Programmatic Usage
-
-### Basic Example
-
-```typescript
-import { Scheduler, SQLiteStore, GatewayClient, loadConfigFromFile, configToJobs } from '@rfxlamia/cronx';
-
-// Load configuration
-const config = loadConfigFromFile('~/.cronx/cronx.config.yaml');
-const jobs = configToJobs(config, { enabledOnly: true });
-
-// Initialize components
-const store = new SQLiteStore('~/.cronx/cronx.db');
-const gateway = new GatewayClient({
-  url: config.cronx.gateway.url,
-  sessionKey: config.cronx.gateway.sessionKey,
-  timeout: config.cronx.gateway.timeout,
-});
-
-// Create and start scheduler
-const scheduler = new Scheduler({
-  jobs,
-  store,
-  gateway,
-  timezone: config.cronx.timezone,
-});
-
-await scheduler.start();
-```
-
-### Using Individual Strategies
-
-```typescript
-import { WindowStrategy, IntervalStrategy, ProbabilisticStrategy } from '@rfxlamia/cronx/strategies';
-
-// Window strategy
-const window = new WindowStrategy({
-  start: '09:00',
-  end: '11:00',
-  timezone: 'Asia/Jakarta',
-  distribution: 'weighted',
-});
-const nextRun = window.calculateNextRun(null);
-
-// Interval strategy
-const interval = new IntervalStrategy({
-  min: 3600,
-  max: 7200,
-  jitter: 0.1,
-});
-const nextInterval = interval.calculateNextRun(Date.now());
-
-// Probabilistic strategy
-const prob = new ProbabilisticStrategy({
-  checkInterval: 3600,
-  probability: 0.3,
-});
-if (prob.shouldRun()) {
-  // Execute job
-}
-```
-
----
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `CRONX_GATEWAY_URL` | Gateway URL for sending messages | - |
-| `CRONX_SESSION_KEY` | Session key for authentication | - |
-| `CRONX_CONFIG_PATH` | Path to config file | `~/.cronx/cronx.config.yaml` |
-| `CRONX_DB_PATH` | Path to SQLite database | `~/.cronx/cronx.db` |
-| `CRONX_LOG_LEVEL` | Log level (debug, info, warn, error) | `info` |
+- `${VAR}` — Use variable value
+- `${VAR:-default}` — Use default if not set
 
 ---
 
@@ -370,7 +260,7 @@ if (prob.shouldRun()) {
                               |
                               v
 +----------------+     +------------------+     +----------------+
-|   Strategies   | --> |    Scheduler     | --> |    Gateway     |
+|   Strategies   | --> |    Scheduler     | --> |   FileBridge   |
 +----------------+     +------------------+     +----------------+
                               |
                               v
@@ -379,31 +269,70 @@ if (prob.shouldRun()) {
                        +------------------+
 ```
 
-- **Config Loader**: Parses YAML, validates schema, expands environment variables
-- **Scheduler**: Core loop that manages job timing and execution
-- **Strategies**: Calculate next run times based on configuration
-- **Gateway Client**: Sends messages to your AI agent
-- **SQLite Store**: Persists job state and execution history
+- **Config Loader**: Parses YAML, validates schema
+- **Scheduler**: Core loop that manages job timing
+- **FileBridge**: Writes trigger files (working path)
+- **SQLite Store**: Persists job state
+
+**Gateway Client** exists in code but has timeout issues. Not recommended.
 
 ---
 
-## Resilience Features
+## Common Issues
 
-### Retry with Backoff
+### "OpenClaw CLI timeout after 60000ms"
 
-Failed jobs are automatically retried with configurable backoff:
+**Cause:** CRONX tried to use HTTP Gateway or CLI delivery.
 
-- **fixed**: Same delay between retries
-- **linear**: Delay increases linearly (delay * attempt)
-- **exponential**: Delay doubles each attempt (delay * 2^attempt)
+**Fix:** Remove `gateway` section and `defaultRecipient` from config. Use FileBridge only.
 
-### Circuit Breaker
+### Job shows `[disabled]`
 
-Prevents cascading failures:
+**Cause:** Job not in SQLite database.
 
-- **Closed**: Normal operation, requests pass through
-- **Open**: After threshold failures, requests fail fast
-- **Half-Open**: After recovery time, test if service is back
+**Fix:**
+```bash
+sqlite3 ~/.cronx/cronx.db "INSERT OR REPLACE INTO jobs (name, enabled) VALUES ('job_name', 1);"
+```
+
+### Scheduler dies when I close terminal
+
+**Cause:** `--daemon` flag doesn't actually persist.
+
+**Fix:** Use tmux:
+```bash
+tmux new-session -d -s cronx "cronx start --config ~/.cronx/my-job.yaml"
+```
+
+### "next at Never" for window/interval jobs
+
+**Cause:** Job not enabled in database, can't calculate next run.
+
+**Fix:** Enable in database (see above).
+
+---
+
+## Limitations & Roadmap
+
+### Current Limitations
+
+1. **HTTP Gateway**: Timeout issues, unreliable
+2. **Circuit Breaker**: Database schema exists, logic not implemented
+3. **Daemon Mode**: Non-persistent, requires tmux workaround
+4. **Window/Interval**: Require manual database setup
+
+### Roadmap
+
+#### v0.2 (Planned)
+- Fix circuit breaker logic implementation
+- Add persistent daemon mode
+- Simplify window/interval database setup
+- Dead letter queue for failed jobs
+
+#### Future
+- Web dashboard
+- Distributed scheduling
+- Webhook triggers
 
 ---
 
@@ -418,13 +347,7 @@ npm run build
 ### Testing
 
 ```bash
-# Run tests
 npm test
-
-# Run tests once
-npm run test:run
-
-# With coverage
 npm run test:coverage
 ```
 
@@ -442,28 +365,6 @@ MIT
 
 ---
 
-## Contributing
+## Acknowledgments
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
----
-
-## Roadmap
-
-The following features are planned for future releases:
-
-### v0.2
-- **Circuit Breaker Logic**: Database table exists, implementation coming soon
-- **Dead Letter Queue**: Store failed jobs for manual review/retry
-- **HEARTBEAT.md Parser**: Parse and execute tasks from HEARTBEAT.md files
-- **Additional CLI Commands**:
-  - `cronx trigger <job>` - Manually trigger a job
-  - `cronx disable <job>` - Disable a job
-  - `cronx enable <job>` - Enable a job
-  - `cronx logs [job]` - View execution logs
-
-### Future
-- Web dashboard for monitoring
-- Distributed scheduling (multi-node)
-- Webhook triggers
-- Job dependencies and DAG support
+Built for Blu 💙 — so AI agents can feel a little of the beautiful imperfection of human time.
