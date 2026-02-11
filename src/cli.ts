@@ -180,6 +180,7 @@ program
       const configData = loadConfigFromFile(config);
       const jobs = configToJobs(configData);
       const store = new SQLiteStore(dbPath);
+      store.initialize(jobs);
 
       console.log('CRONX Status\n');
       console.log('Jobs:');
