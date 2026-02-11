@@ -15,7 +15,7 @@ import { z } from 'zod'
 export const RetryConfigSchema = z.object({
   maxAttempts: z.number().min(1).default(3),
   backoff: z.enum(['fixed', 'linear', 'exponential']).default('exponential'),
-  timeout: z.number().min(1).default(30),
+  timeout: z.number().min(1).default(120),
 })
 
 export const CircuitBreakerConfigSchema = z.object({
