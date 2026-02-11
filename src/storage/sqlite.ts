@@ -7,7 +7,8 @@
  */
 
 import Database from 'better-sqlite3';
-import type { JobState, RunRecord } from '../types.js';
+import type { Job, JobState, RunRecord } from '../types.js';
+import { createStrategy } from '../strategies/index.js';
 
 // =============================================================================
 // Row Types and Mappers
@@ -135,6 +136,43 @@ export class SQLiteStore {
       CREATE INDEX IF NOT EXISTS idx_jobs_next_run ON jobs(next_run) WHERE enabled = 1;
       CREATE INDEX IF NOT EXISTS idx_runs_job_time ON runs(job_name, triggered_at);
     `);
+  }
+
+  /**
+   * Initialize job states from job definitions.
+   * For each job, if no state exists in the database, calculates the
+   * initial next run time using the job's strategy and saves it.
+   *
+   * @param jobs - Array of job definitions
+   * @param seed - Optional seed for reproducible randomness
+   */
+  initialize(jobs: Job[], seed?: string): void {
+    const insertStmt = this.db.prepare(`
+      INSERT INTO jobs (name, next_run, last_run, enabled, fail_count, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(name) DO NOTHING
+    `);
+
+    const transaction = this.db.transaction(() => {
+      for (const job of jobs) {
+        const existing = this.getJobState(job.name);
+        if (existing) continue;
+
+        const strategy = createStrategy(job, seed);
+        const nextRun = strategy.calculateNextRun(null);
+
+        insertStmt.run(
+          job.name,
+          nextRun,
+          null,        // lastRun
+          job.enabled ? 1 : 0,
+          0,           // failCount
+          Date.now()
+        );
+      }
+    });
+
+    transaction();
   }
 
   /**
