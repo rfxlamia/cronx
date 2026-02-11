@@ -31,8 +31,8 @@ const __dirname = path.dirname(__filename);
 /**
  * Format date for display
  */
-function formatDate(date: Date | null): string {
-  if (!date) return 'Never';
+function formatDate(date: Date | null, uninitialized?: boolean): string {
+  if (!date) return uninitialized ? 'Initializing...' : 'Never';
   return date.toLocaleString();
 }
 
@@ -193,7 +193,8 @@ program
 
         console.log(`\n  ${job.name} [${status}]`);
         console.log(`    Strategy: ${job.strategy}`);
-        console.log(`    Next run: ${formatDate(nextRun)}`);
+        const isUninitialized = !state?.nextRun && !state?.lastRun;
+        console.log(`    Next run: ${formatDate(nextRun, isUninitialized)}`);
         console.log(`    Last run: ${formatDate(lastRun)}`);
 
         if (state?.failCount && state.failCount > 0) {
